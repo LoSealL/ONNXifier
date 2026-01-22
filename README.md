@@ -1,29 +1,33 @@
-# OPENVINO2ONNX
-A simple tool to convert your IR XML to ONNX file.
+# ONNXifier
+A simple tool to convert any IR format to ONNX file.
 
 [![Checked with pyright](https://microsoft.github.io/pyright/img/pyright_badge.svg)](https://microsoft.github.io/pyright/)
 
-Supported OpenVINO IR Version
+| Framework | Status |
+|:----------|:-------|
+| OpenVINO  |  ✅    |
+| ONNXRuntime | ✅  |
 
-- IRv10: openvino>=2020,<2023
-- IRv11: openvino>=2023
+- ✅: well supported
+- 🪛: partially supported
+- 🚧: developing
 
 ## Usage
 
 1. Install from PyPI
 ```shell
-pip install openvino2onnx
+pip install onnxifier
 ```
 
 2. Convert IR using CLI
 ```shell
-openvino2onnx model.xml
+onnxify model.xml
 ```
 
 ```
-usage: openvino2onnx input_model.xml [output_model.onnx]
+usage: onnxify input_model.xml [output_model.onnx]
 
-openvino2onnx command-line api
+onnxify command-line api
 
 options:
   -h, --help            show this help message and exit
@@ -46,12 +50,46 @@ options:
                         target opset version, defaults to 19
   -vv [{DEBUG,INFO,WARNING,ERROR,CRITICAL}], --log-level [{DEBUG,INFO,WARNING,ERROR,CRITICAL}]
                         specify the level of log messages to be printed, defaults to INFO
+  -R, --recursive       recursively optimize nested functions
+  --nodes [NODES ...]   specify a set of node names to apply passes only on these nodes
 ```
 
 To print pass information:
 
+```shell
+onnxify --print all
+onnxify --print fuse_swish
+onnxify --print l1
 ```
-openvino2onnx --print all
-openvino2onnx --print fuse_swish
-openvino2onnx --print l1
+
+
+## TODO
+
+- [ ] [**OV**] Add [Loop](https://docs.openvino.ai/2024/documentation/openvino-ir-format/operation-sets/operation-specs/infrastructure/loop-5.html) support.
+- [ ] [**OV**] Add [NMS](https://docs.openvino.ai/2024/documentation/openvino-ir-format/operation-sets/operation-specs/sort/non-max-suppression-9.html) support.
+- [ ] [**OV**] Add [If](https://docs.openvino.ai/2024/documentation/openvino-ir-format/operation-sets/operation-specs/condition/if-8.html) support.
+- [ ] [**ONNX**] Support to optimize [If](https://onnx.ai/onnx/operators/onnx__If.html).
+
+
+## Contribute
+
+1. pyright type checking
+
+```
+pip install -U pyright
+pyright onnxifier
+```
+
+2. mypy type checking
+
+```
+pip install -U mypy
+mypy onnxifier --disable-error-code=import-untyped --disable-error=override --disable-error=call-overload
+```
+
+3. pre-commit checking
+
+```
+pip install -U pre-commit
+pre-commit run --all-files
 ```

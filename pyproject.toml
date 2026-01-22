@@ -1,13 +1,28 @@
+# Copyright (C) 2023-2026 The ONNXIFIER Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 [build-system]
 requires = ["flit_core >=3.2,<4"]
 build-backend = "flit_core.buildapi"
 
 [project]
-name = "openvino2onnx"
+name = "onnxifier"
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [
     { name = "Wenyi Tang", email = "wenyitang@outlook.com" },
+    { name = "Jianjin Liao", email = "1486660504@qq.com" },
 ]
 license-files = ["LICENSE"]
 classifiers = [
@@ -17,40 +32,49 @@ classifiers = [
 ]
 dynamic = ["version", "description"]
 dependencies = [
+    "ml_dtypes>=0.5.1",
     "onnx>=1.17.0",
     "networkx",
-    "numpy<2.2.0",
+    "numpy>2.0",
     "tabulate",
     "colorlog>=6.9.0",
     "termcolor>=3.1.0",
 ]
 
 [project.urls]
-Home = "https://github.com/LoSealL/openvino2onnx"
-Docs = "https://loseall.github.io/openvino2onnx"
+Home = "https://github.com/LoSealL/onnxifier"
+Docs = "https://loseall.github.io/onnxifier"
 
 [project.optional-dependencies]
 test = [
+    "mypy",
     "onnxoptimizer",
     "onnxruntime",
+    "onnxscript>=0.5.7",
     "onnxsim",
     "openvino>=2025.0.0",
+    "pooch",
     "pre-commit",
+    "pyright>=1.1.408",
     "pytest",
     "pytest-cov",
-    "pooch",
+    "torch",
+]
+fuzzy = [
+    "tensorflow-cpu>=2.20.0",
+    "pyyaml",
 ]
 
 [project.scripts]
-openvino2onnx = "openvino2onnx.__main__:main"
+onnxify = "onnxifier.__main__:main"
 
 [tool.setuptools]
 # Compatible with setuptools, when change build-system to setuptools.
-packages = ["openvino2onnx"]
+packages = ["onnxifier"]
 
 [tool.pyright]
-include = ["openvino2onnx"]
-exclude = ["openvino2onnx/domain/pytorch", "tests", "tests_omz_fuzzy"]
+include = ["onnxifier"]
+exclude = ["onnxifier/domain/pytorch", "tests", "tests_omz_fuzzy"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -86,18 +110,9 @@ disable = [
 [tool.mypy]
 disable_error_code = ["assignment", "import-untyped", "return-value", "return"]
 exclude = [
-    '^openvino2onnx/domain/pytorch/.*\.py$',
+    '^onnxifier/domain/pytorch/.*\.py$',
+    '^onnxifier/passes/experiments/.*\.py$',
     '^tests.*\.py$',
-]
-
-[dependency-groups]
-dev = [
-    "mypy>=1.16.0",
-    "onnxscript>=0.3.0",
-    "pyright>=1.1.401",
-    "torch>=2.7.1",
-    "torchaudio>=2.7.1",
-    "torchvision>=0.22.1",
 ]
 
 [tool.uv.sources]
@@ -107,5 +122,5 @@ torchvision = { index = "pytorch" }
 
 [[tool.uv.index]]
 name = "pytorch"
-url = "https://download.pytorch.org/whl/cu126"
+url = "https://download.pytorch.org/whl/cpu"
 explicit = true

@@ -1,41 +1,22 @@
-name: Check openvino2onnx coding style
-run-name: ${{ github.actor }} linting
+name: check coding styles
+run-name: ${{ github.actor }} lint
 on:
   pull_request:
     paths:
-      - 'openvino2onnx/**.py'
-      - 'tests/**.py'
+      - 'onnxifier/**'
+      - 'tests/**'
 jobs:
-  run-flake8:
+  run-lint-public:
     runs-on: [ubuntu-latest]
     strategy:
       matrix:
-        python-version: ["3.11"]
+        python-version: ["3.12"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 2
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
-      - name: install dependencies
-        run: |
-          python -m pip install pre-commit
-          pre-commit install --install-hooks
-      - name: lint with pre-commit
-        # check all commits from main
-        run: pre-commit run -s HEAD^ -o HEAD
-  run-pyright:
-    runs-on: [ubuntu-latest]
-    strategy:
-      matrix:
-        python-version: ["3.11"]
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
-      - uses: actions/setup-python@v4
+      - name: Install uv and set the Python version
+        uses: astral-sh/setup-uv@v6
         with:
           python-version: ${{ matrix.python-version }}
       - uses: actions/setup-node@v4
@@ -43,8 +24,6 @@ jobs:
           node-version: lts/Jod
       - name: pyright type check
         run: |
-          python -m pip install -U pyright
-          python -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-          python -m pip install onnxscript onnxruntime openvino onnxoptimizer onnxsim colorlog
-          python -m pip install -e .
-          pyright openvino2onnx
+          uv sync --extra=test -U
+          uv run pyright onnxifier
+          uv run pre-commit run -s HEAD^ -o HEAD
