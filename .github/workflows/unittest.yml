@@ -1,0 +1,27 @@
+name: Run onnxifier unit tests
+run-name: ${{ github.actor }} unit tests
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/*.yml'
+      - 'onnxifier/**.py'
+      - 'tests/**.py'
+  workflow_dispatch:
+jobs:
+  run-unit-tests:
+    runs-on: [ubuntu-latest]
+    strategy:
+      matrix:
+        python-version: ["3.12"]
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install uv and set the Python version
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          uv sync --extra=test -U
+      - name: Run pytest and coverage
+        run: |
+          uv run pytest --cov=onnxifier tests

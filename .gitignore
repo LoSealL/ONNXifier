@@ -11,3 +11,6 @@ build/
 tests/models/
 !tests/models/.gitkeep
 !tests/models/model.list
+
+uv.lock
+.coverage

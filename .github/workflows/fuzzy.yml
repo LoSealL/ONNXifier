@@ -1,0 +1,30 @@
+name: Run onnxifier fuzzy tests
+run-name: ${{ github.actor }} fuzzy tests
+on:
+  workflow_dispatch:
+
+jobs:
+  run-fuzzy-tests:
+    runs-on: [ubuntu-latest]
+    strategy:
+      matrix:
+        python-version: ["3.12"]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5
+        with:
+          repository: openvinotoolkit/open_model_zoo
+          submodules: recursive
+          path: tests_omz_fuzzy/open_model_zoo
+          ref: ba58378e9b82055b200af5d6c5d9830b17bf78a7
+      - name: Install uv and set the Python version
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          uv sync --extra=test --extra=fuzzy -U
+          uv pip install -e tests_omz_fuzzy/open_model_zoo/tools/model_tools
+      - name: Run pytest and coverage
+        run: |
+          uv run tests_omz_fuzzy/fuzzy.py
