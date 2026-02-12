@@ -14,20 +14,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import List, Sequence
+from typing import List, Sequence, Type
 
 import networkx as nx
 
 from ... import logger
 from ...graph import OnnxGraph
 from ...passes import PASSES
+from ...passes.rewriter import Rewriter
 from . import OP_CONVERTER
 
 
-def _expand_deps(deps: Sequence[str]):
+def _expand_deps(deps: Sequence[str | Type[Rewriter]]):
     root: nx.DiGraph = nx.DiGraph()
     root.add_nodes_from(deps)
-    leaves: List[str] = list(deps).copy()
+    leaves: List[str | Type[Rewriter]] = list(deps).copy()
     while leaves:
         leaf = leaves.pop(0)
         children = PASSES[leaf].__DEPS__

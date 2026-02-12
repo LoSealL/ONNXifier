@@ -17,7 +17,7 @@ Remove conv weights with all zero channels
 """
 
 from itertools import chain
-from typing import Dict, List, Protocol, Set
+from typing import Dict, List, Protocol, Set, Type
 
 import networkx as nx
 import numpy as np
@@ -73,8 +73,8 @@ class PrunedData:
 class IPruneForwardFunc(Protocol):
     """Interface for forward pruning functions."""
 
-    __DEPS__: List[str]
-    __PATCHES__: List[str]
+    __DEPS__: List[str | Type[Rewriter]]
+    __PATCHES__: List[str | Type[Rewriter]]
 
     def __call__(
         self, rewriter: Rewriter, node: NodeProto, pruned: PrunedData
@@ -85,8 +85,8 @@ class IPruneForwardFunc(Protocol):
 class IPruneBackwardFunc(Protocol):
     """Interface for backward pruning functions."""
 
-    __DEPS__: List[str]
-    __PATCHES__: List[str]
+    __DEPS__: List[str | Type[Rewriter]]
+    __PATCHES__: List[str | Type[Rewriter]]
 
     def __call__(
         self, rewriter: Rewriter, node: NodeProto, pruned: PrunedData

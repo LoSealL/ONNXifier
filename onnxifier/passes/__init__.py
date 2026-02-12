@@ -40,8 +40,8 @@ from .rewriter import Rewriter
 class GraphNode(Protocol):
     """Any node to be registered in the Registry shall follow this protocol."""
 
-    __DEPS__: List[str]
-    __PATCHES__: List[str]
+    __DEPS__: List[str | Type[Rewriter]]
+    __PATCHES__: List[str | Type[Rewriter]]
 
 
 T = TypeVar("T", bound=GraphNode)
@@ -54,8 +54,8 @@ class FuncInterfaceWrapper(Generic[T]):
         self,
         func: Callable,
         name: Optional[str],
-        deps: Optional[List[str]],
-        patches: Optional[List[str]],
+        deps: Optional[List[str | Type[Rewriter]]],
+        patches: Optional[List[str | Type[Rewriter]]],
     ):
         # pylint: disable=invalid-name
         self.__FUNC = func
@@ -113,8 +113,8 @@ class Registry(Generic[T]):
     def register(
         self,
         name: Optional[str] = None,
-        deps: Optional[List[str]] = None,
-        patch: Optional[List[str]] = None,
+        deps: Optional[List[str | Type[Rewriter]]] = None,
+        patch: Optional[List[str | Type[Rewriter]]] = None,
     ):
         """A decorator to register an object.
 
@@ -156,10 +156,21 @@ class Registry(Generic[T]):
 
         return wrapper
 
-    def get(self, name: str) -> Optional[T]:
+    def get(self, name: str | Type[T]) -> Optional[T]:
         """Get a registered object by its name."""
+        if inspect.isclass(name):
+            return name()
         if name in self._bucks:
             functor = self._bucks[name]()  # create a new instance each time
+            # functor.__NAME__ = name  # rename the instance
+            return functor
+
+    def get_type(self, name: str | Type[T]):
+        """Get a registered object type by its name."""
+        if inspect.isclass(name):
+            return name
+        if name in self._bucks:
+            functor = self._bucks[name]  # create a new instance each time
             # functor.__NAME__ = name  # rename the instance
             return functor
 
@@ -178,7 +189,7 @@ class Registry(Generic[T]):
         reg._configs = {k: self._configs[k] for k in passes}
         return reg
 
-    def __getitem__(self, name: str) -> T:
+    def __getitem__(self, name: str | Type[T]) -> T:
         """Get a registered object by its name."""
         obj = self.get(name)
         if obj is None:
@@ -196,13 +207,13 @@ class Registry(Generic[T]):
     def __repr__(self) -> str:
         title = [f"Register: {self._name}", "Deps", "Patch", "Config"]
         members = []
-        for i in sorted(self._bucks.keys()):
+        for k in sorted(self._bucks.keys()):
             members.append(
                 [
-                    i,
-                    self._bucks[i].__DEPS__,
-                    self._bucks[i].__PATCHES__,
-                    self._configs[i],
+                    k,
+                    self._bucks[k].__DEPS__,
+                    self._bucks[k].__PATCHES__,
+                    self._configs[k],
                 ]
             )
         return tabulate(members, title, "simple_grid", maxcolwidths=[None, 50, 50, 50])

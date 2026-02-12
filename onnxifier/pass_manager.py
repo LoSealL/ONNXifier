@@ -124,7 +124,7 @@ class PassManager:
 
     def _expand(self, nodes, priv_member):
         root: nx.DiGraph = nx.DiGraph()  # type: ignore
-        leaves = [f"{i}:{n}" for i, n in enumerate(nodes)]
+        leaves = [(i, n) for i, n in enumerate(nodes)]
         root.add_nodes_from(leaves)
         # a shallow graph to check cyclic dependencies
         shallow: nx.DiGraph = nx.DiGraph()  # type: ignore
@@ -132,13 +132,13 @@ class PassManager:
         ind = len(leaves)
         while leaves:
             leaf = leaves.pop(0)
-            leaf_pass = leaf.split(":")[1]
-            children = getattr(PASSES.get(leaf_pass), priv_member, [])
+            leaf_pass = leaf[1]
+            children = getattr(PASSES.get_type(leaf_pass), priv_member, [])
             shallow.add_edges_from([(leaf_pass, child) for child in children])
             try:
                 cycles = nx.find_cycle(shallow, leaf_pass)
             except nx.NetworkXNoCycle:
-                children = [f"{ind + i}:{c}" for i, c in enumerate(children)]
+                children = [(ind + i, c) for i, c in enumerate(children)]
                 ind += len(children)
                 root.add_edges_from([(leaf, child) for child in children])
                 leaves.extend(children)
@@ -150,12 +150,12 @@ class PassManager:
     def _expand_deps(self, deps):
         root = self._expand(deps, "__DEPS__")
         for i in nx.traversal.dfs_postorder_nodes(root):
-            yield i.split(":")[1]
+            yield i[1]
 
     def _expand_patches(self, nodes):
         root = self._expand(nodes, "__PATCHES__")
         for i in nx.traversal.dfs_preorder_nodes(root):
-            yield i.split(":")[1]
+            yield i[1]
 
     def optimize(
         self,
