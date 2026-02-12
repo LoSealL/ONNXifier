@@ -1,5 +1,5 @@
 """
-Copyright (C) 2024-2025 The ONNXIFIER Authors.
+Copyright (C) 2024-2026 The ONNXIFIER Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@ limitations under the License.
 from abc import ABCMeta, abstractmethod
 from collections.abc import Generator, Sequence, Sized
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Set
+from typing import Any, Callable, Dict, List, Optional, Set, Type
 from uuid import uuid4
 
 import numpy as np
@@ -61,8 +61,8 @@ class Rewriter(metaclass=MetaRewriter):
     """
 
     __NAME__: str = "Rewriter"
-    __DEPS__: List[str] = []
-    __PATCHES__: List[str] = []
+    __DEPS__: List[str | Type["Rewriter"]] = []
+    __PATCHES__: List[str | Type["Rewriter"]] = []
 
     def __init__(self, pattern: Pattern, repeat=RewriterRepeat.ONCE):
         assert isinstance(pattern, Pattern)

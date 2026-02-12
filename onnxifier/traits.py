@@ -1,5 +1,5 @@
 """
-Copyright (C) 2025 The ONNXIFIER Authors.
+Copyright (C) 2026 The ONNXIFIER Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,11 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import List, Protocol
+from typing import List, Protocol, Type
 
 from onnx import NodeProto
 
 from .graph import OnnxGraph
+from .passes.rewriter import Rewriter
 
 
 class RewriterInterface(Protocol):
@@ -27,10 +28,10 @@ class RewriterInterface(Protocol):
     __NAME__: str
     """Specify the name of the rewriter pass. Defaults to class or function name."""
 
-    __DEPS__: List[str]
+    __DEPS__: List[str | Type[Rewriter]]
     """Specify the dependencies of the rewriter pass."""
 
-    __PATCHES__: List[str]
+    __PATCHES__: List[str | Type[Rewriter]]
     """Specify the finalizers of the rewriter pass."""
 
     def __call__(self, graph: OnnxGraph, *args, **kwargs) -> OnnxGraph:
