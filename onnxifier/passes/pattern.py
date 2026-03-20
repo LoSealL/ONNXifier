@@ -1,5 +1,5 @@
 """
-Copyright (C) 2025 The ONNXIFIER Authors.
+Copyright (C) 2026 The ONNXIFIER Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -366,8 +366,13 @@ class ConstantGraphPattern(Pattern):
                 const_names.update(node.output)
         if specify_node_names:
             const_nodes = [n for n in const_nodes if n.name in specify_node_names]
-        # TODO: cluster into subgraphs
-        yield const_nodes
+        if not const_nodes:
+            return
+        const_node_names = {node.name for node in const_nodes}
+        const_subgraph = graph.subgraph(const_node_names)
+        undirected_const_subgraph = const_subgraph.to_undirected(as_view=True)
+        for component in nx.connected_components(undirected_const_subgraph):
+            yield [node for node in const_nodes if node.name in component]
 
 
 class OutputNodePattern(Pattern):

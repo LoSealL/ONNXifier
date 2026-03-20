@@ -29,6 +29,7 @@ from onnx.helper import (
 
 from onnxifier import OnnxGraph
 from onnxifier.passes.pattern import (
+    ConstantGraphPattern,
     GraphPattern,
     InputNodePattern,
     OutputNodePattern,
@@ -97,6 +98,30 @@ def _build_test_graph2():
                 np.ones([8, 8, 3, 3], "float32").tobytes(),
                 raw=True,
             ),
+        ],
+    )
+    model = make_model(graph)
+    return model
+
+
+def _build_test_graph5():
+    add0 = make_node("Add", inputs=["a0", "b0"], outputs=["c0"], name="add0")
+    relu0 = make_node("Relu", inputs=["c0"], outputs=["d0"], name="relu0")
+    add1 = make_node("Add", inputs=["a1", "b1"], outputs=["c1"], name="add1")
+    relu1 = make_node("Relu", inputs=["c1"], outputs=["d1"], name="relu1")
+    graph = make_graph(
+        [add0, relu0, add1, relu1],
+        name="graph",
+        inputs=[],
+        outputs=[
+            make_value_info("d0", make_tensor_type_proto(1, [1])),
+            make_value_info("d1", make_tensor_type_proto(1, [1])),
+        ],
+        initializer=[
+            make_tensor("a0", 1, [1], np.array([1], "float32").tobytes(), raw=True),
+            make_tensor("b0", 1, [1], np.array([2], "float32").tobytes(), raw=True),
+            make_tensor("a1", 1, [1], np.array([3], "float32").tobytes(), raw=True),
+            make_tensor("b1", 1, [1], np.array([4], "float32").tobytes(), raw=True),
         ],
     )
     model = make_model(graph)
@@ -320,3 +345,16 @@ def test_output_node_pattern_with_specify_node_names():
 
     nodes = list(pattern.match(graph, specify_node_names={"conv1"}))
     assert len(nodes) == 0
+
+
+def test_constant_graph_pattern_matches_connected_components():
+    graph = OnnxGraph(_build_test_graph5())
+    pattern = ConstantGraphPattern()
+
+    matched = list(pattern.match(graph))
+
+    assert len(matched) == 2
+    assert [[node.name for node in nodes] for nodes in matched] == [
+        ["add0", "relu0"],
+        ["add1", "relu1"],
+    ]

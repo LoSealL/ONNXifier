@@ -1,5 +1,5 @@
 """
-Copyright (C) 2024 The ONNXIFIER Authors.
+Copyright (C) 2026 The ONNXIFIER Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import numpy as np
 from onnx import NodeProto
 
 from ... import OnnxGraph
+from ...logger import debug
 from .. import L1
 from ..pattern import SingleNodePattern
 from ..rewriter import Rewriter
@@ -35,7 +36,10 @@ class ConstantOfShapeRewriter(Rewriter):
 
     def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto]):
         node = nodes[0]
-        shape = self.get_value_or_die(node.input[0])
+        shape = self.get_value(node.input[0])
+        if shape is None:
+            debug(f"skip {node.name} since the shape is not constant")
+            return
         value = self.get_attribute(node, "value")
         if value is None:  # default value is 0.0
             value = np.array([0], dtype=np.float32)
