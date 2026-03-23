@@ -15,7 +15,6 @@ limitations under the License.
 """
 
 # pylint: disable=arguments-differ
-from typing import List
 
 import numpy as np
 from onnx.helper import make_node, tensor_dtype_to_np_dtype
@@ -63,7 +62,7 @@ class SpaceToDepthToQConvRewriter(Rewriter):
         self += [new_scale]
         return new_node
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto]):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
         s2d, qnode, dqnode = nodes
         blocksize = self.get_attribute(s2d, "blocksize")
         assert isinstance(blocksize, int)
@@ -82,9 +81,7 @@ class SpaceToDepthToQConvRewriter(Rewriter):
         kernel = (
             # fmt: off
             np.tile(
-                np.eye(blocksize**2)
-                .reshape([-1, blocksize, blocksize])
-                .astype(dtype),
+                np.eye(blocksize**2).reshape([-1, blocksize, blocksize]).astype(dtype),
                 [ic, 1, 1, 1],
             )
             .transpose([1, 0, 2, 3])

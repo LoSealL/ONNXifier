@@ -15,9 +15,9 @@ limitations under the License.
 """
 
 from abc import ABCMeta, abstractmethod
-from collections.abc import Generator, Sequence, Sized
+from collections.abc import Callable, Generator, Sequence, Sized
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Set, Type
+from typing import Any
 from uuid import uuid4
 
 import numpy as np
@@ -61,23 +61,23 @@ class Rewriter(metaclass=MetaRewriter):
     """
 
     __NAME__: str = "Rewriter"
-    __DEPS__: List[str | Type["Rewriter"]] = []
-    __PATCHES__: List[str | Type["Rewriter"]] = []
+    __DEPS__: list[str | type["Rewriter"]] = []
+    __PATCHES__: list[str | type["Rewriter"]] = []
 
     def __init__(self, pattern: Pattern, repeat=RewriterRepeat.ONCE):
         assert isinstance(pattern, Pattern)
         self.pattern = pattern
         repeat_value = repeat.value if isinstance(repeat, RewriterRepeat) else repeat
         self.repeat = min(int(repeat_value), RewriterRepeat.INFINITE.value)
-        self.node_to_add: Set[onnx.NodeProto] = set()
-        self.node_to_remove: Set[onnx.NodeProto] = set()
-        self.pre_hooks: Dict[int, Callable[[OnnxGraph], OnnxGraph]] = {}
-        self.post_hooks: Dict[int, Callable[[OnnxGraph], OnnxGraph]] = {}
+        self.node_to_add: set[onnx.NodeProto] = set()
+        self.node_to_remove: set[onnx.NodeProto] = set()
+        self.pre_hooks: dict[int, Callable[[OnnxGraph], OnnxGraph]] = {}
+        self.post_hooks: dict[int, Callable[[OnnxGraph], OnnxGraph]] = {}
         # record how many patterns have been matched and rewritten
         self.num_rewrites = 0
 
     @abstractmethod
-    def rewrite(self, graph: OnnxGraph, nodes: List[onnx.NodeProto], *args, **kwargs):
+    def rewrite(self, graph: OnnxGraph, nodes: list[onnx.NodeProto], *args, **kwargs):
         """Implement how to rewrite matched nodes in the graph
 
         Args:
@@ -122,7 +122,7 @@ class Rewriter(metaclass=MetaRewriter):
         graph: OnnxGraph,
         *args,
         names: str | Sequence[str] | None = None,
-        _specify_node_names: Set[str] | None = None,
+        _specify_node_names: set[str] | None = None,
         **kwargs,
     ) -> OnnxGraph:
         """Look up for matched patterns in the graph and rewrite it.
@@ -141,7 +141,7 @@ class Rewriter(metaclass=MetaRewriter):
         self.num_rewrites = 0
         for hook_fn in self.pre_hooks.values():
             graph = hook_fn(graph)
-        _names: Set[str] = set()
+        _names: set[str] = set()
         if names:
             _names.update([names] if isinstance(names, str) else names)
         if _specify_node_names:
@@ -221,13 +221,13 @@ class Rewriter(metaclass=MetaRewriter):
             raise ValueError(f"Failed to find input node for {node.name}({i_or_s})")
         return input_node
 
-    def get_input_nodes(self, node: onnx.NodeProto) -> List[onnx.NodeProto | None]:
+    def get_input_nodes(self, node: onnx.NodeProto) -> list[onnx.NodeProto | None]:
         """Get all input nodes for the given node."""
         return [self.get_input_node(node, i) for i in node.input]
 
     def get_output_node(
         self, node: onnx.NodeProto, i_or_s: int | str = 0
-    ) -> List[onnx.NodeProto]:
+    ) -> list[onnx.NodeProto]:
         """Get the output node from the i-th output."""
         graph = self.graph
         if isinstance(i_or_s, int):
@@ -299,8 +299,8 @@ class Rewriter(metaclass=MetaRewriter):
                 break
 
     def get_value(
-        self, node: onnx.NodeProto | str, output_name: Optional[str] = None
-    ) -> Optional[np.ndarray]:
+        self, node: onnx.NodeProto | str, output_name: str | None = None
+    ) -> np.ndarray | None:
         """Get value from a constant node."""
         external_base = self.graph.external_base or ""
         if isinstance(node, str):
@@ -336,7 +336,7 @@ class Rewriter(metaclass=MetaRewriter):
         return evaluate_on_node(self.graph, node, output_name)
 
     def get_value_or_die(
-        self, node: onnx.NodeProto | str, output_name: Optional[str] = None
+        self, node: onnx.NodeProto | str, output_name: str | None = None
     ) -> np.ndarray:
         """Get value and raise exception if value is not evaluated."""
         value = self.get_value(node, output_name)

@@ -18,7 +18,6 @@ from contextlib import contextmanager
 from os import PathLike
 from os import chdir as _chdir
 from pathlib import Path
-from typing import Optional
 
 
 def legalize_name(name: str) -> str:
@@ -41,7 +40,7 @@ def legalize_path_name(name: str | PathLike | Path) -> Path:
 
 
 @contextmanager
-def chdir(path: Optional[str | PathLike | Path]):
+def chdir(path: str | PathLike | Path | None):
     """Context manager to change current working directory."""
     if path is None:
         yield

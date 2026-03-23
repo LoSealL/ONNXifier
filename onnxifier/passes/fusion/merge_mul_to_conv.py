@@ -14,8 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import List
-
 import numpy as np
 from onnx.helper import make_node
 from onnx.onnx_pb import NodeProto
@@ -97,7 +95,7 @@ class MergeMulToConvRewrite(Rewriter):
         )
         return cst, mul
 
-    def rewrite_pattern1(self, graph: OnnxGraph, nodes: List[NodeProto]):
+    def rewrite_pattern1(self, graph: OnnxGraph, nodes: list[NodeProto]):
         """Fuse mul-elt-conv to conv"""
         mul, elt, conv = nodes
 
@@ -125,7 +123,7 @@ class MergeMulToConvRewrite(Rewriter):
 
         self -= [mul]
 
-    def rewrite_pattern2(self, graph: OnnxGraph, nodes: List[NodeProto]):
+    def rewrite_pattern2(self, graph: OnnxGraph, nodes: list[NodeProto]):
         """Fuse conv-mul to conv"""
         conv, mul = nodes
         input_name, factor = self._get_input_and_factor(mul, graph)
@@ -158,7 +156,7 @@ class MergeMulToConvRewrite(Rewriter):
         self -= mul
 
     # pylint: disable=arguments-differ
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto]):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
         if len(nodes) == 3:
             self.rewrite_pattern1(graph, nodes)
         elif len(nodes) == 2:

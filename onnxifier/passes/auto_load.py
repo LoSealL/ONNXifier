@@ -16,14 +16,13 @@ limitations under the License.
 
 from importlib import import_module
 from pathlib import Path
-from typing import Optional, Set, Tuple
 
 from ..logger import warning
 
 TOP = Path(__file__).parent.parent.parent.resolve()
 
 
-def auto_load(cwd: str | Path, filters: Optional[Set[str]] = None, top: Path = TOP):
+def auto_load(cwd: str | Path, filters: set[str] | None = None, top: Path = TOP):
     """Search and load python modules in `cwd`.
 
     Args:
@@ -35,7 +34,7 @@ def auto_load(cwd: str | Path, filters: Optional[Set[str]] = None, top: Path = T
     package = models_dir.relative_to(top).as_posix().replace("/", ".")
 
     def _filter(p: Path) -> bool:
-        pattern: Tuple[str, ...] = ("__",)
+        pattern: tuple[str, ...] = ("__",)
         if filters:
             pattern += tuple(filters)
         return all(i not in p.stem for i in pattern)

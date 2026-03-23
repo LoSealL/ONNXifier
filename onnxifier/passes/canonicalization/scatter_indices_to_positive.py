@@ -14,8 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import List
-
 import numpy as np
 import onnx
 
@@ -43,7 +41,7 @@ class ScatterNDIndicesToPositiveRewriter(Rewriter):
     def __init__(self):
         super().__init__(SingleNodePattern("ScatterND"))
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[onnx.NodeProto]):
+    def rewrite(self, graph: OnnxGraph, nodes: list[onnx.NodeProto]):
         node = nodes[0]
         indices = self.get_value_or_die(node.input[1]).copy()
         data_shape = graph.static_tensor_shape(node.input[0])

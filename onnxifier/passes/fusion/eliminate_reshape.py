@@ -14,8 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import List
-
 from onnx.onnx_pb import NodeProto
 
 from ... import OnnxGraph, logger
@@ -31,7 +29,7 @@ class EliminateInputOutputReshapeRewriter(Rewriter):
     def __init__(self):
         super().__init__(SingleNodePattern("Reshape"))
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto], *args, **kwargs):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto], *args, **kwargs):
         node = nodes[0]
         self._rewrite_input_reshape(graph, node)
         self._rewrite_output_reshape(graph, node)

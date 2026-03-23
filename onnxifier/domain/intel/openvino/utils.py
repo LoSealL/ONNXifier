@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 from contextlib import suppress
-from typing import List, Literal, Optional, overload
+from typing import Literal, overload
 
 
 def text_to_boolean(text: str | Literal["0", "1", "false", "true"]) -> bool:
@@ -37,11 +37,11 @@ def text_to_integers(text: None) -> None:
 
 
 @overload
-def text_to_integers(text: str) -> List[int]:
+def text_to_integers(text: str) -> list[int]:
     """Convert comma-separated text to list of integers"""
 
 
-def text_to_integers(text: Optional[str]) -> List[int] | None:
+def text_to_integers(text: str | None) -> list[int] | None:
     """Convert comma-separated text to list of integers
 
     Args:

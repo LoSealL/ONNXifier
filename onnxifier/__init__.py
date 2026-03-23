@@ -15,11 +15,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-__version__ = "2.0.2"
+__version__ = "2.0.3"
 
 import os
+from collections.abc import Sequence
 from copy import deepcopy
-from typing import Any, Dict, Literal, Optional, Sequence
+from typing import Any, Literal
 
 import onnx
 from onnx import ModelProto
@@ -34,15 +35,15 @@ from .passes.version_converter.upgrade import upgrade_op_version
 
 def convert_graph(
     model: str | os.PathLike | ModelProto,
-    passes: Optional[Sequence[str]] = None,
-    exclude: Optional[Sequence[str]] = None,
-    onnx_format: Optional[Literal["protobuf", "textproto", "json", "onnxtxt"]] = None,
+    passes: Sequence[str] | None = None,
+    exclude: Sequence[str] | None = None,
+    onnx_format: Literal["protobuf", "textproto", "json", "onnxtxt"] | None = None,
     strict: bool = False,
-    configs: Optional[Dict[str, Any]] = None,
+    configs: dict[str, Any] | None = None,
     print_passes: bool = True,
-    target_opset: Optional[int] = None,
+    target_opset: int | None = None,
     recursive: bool = False,
-    specify_node_names: Optional[Sequence[str]] = None,
+    specify_node_names: Sequence[str] | None = None,
 ) -> OnnxGraph:
     """Convert an ONNX model to OnnxGraph
 
@@ -96,15 +97,15 @@ def convert_graph(
 
 def convert(
     model: str | os.PathLike | ModelProto,
-    passes: Optional[Sequence[str]] = None,
-    exclude: Optional[Sequence[str]] = None,
-    onnx_format: Optional[Literal["protobuf", "textproto", "json", "onnxtxt"]] = None,
+    passes: Sequence[str] | None = None,
+    exclude: Sequence[str] | None = None,
+    onnx_format: Literal["protobuf", "textproto", "json", "onnxtxt"] | None = None,
     strict: bool = False,
-    configs: Optional[Dict[str, Any]] = None,
+    configs: dict[str, Any] | None = None,
     print_passes: bool = True,
-    target_opset: Optional[int] = None,
+    target_opset: int | None = None,
     recursive: bool = False,
-    specify_node_names: Optional[Sequence[str]] = None,
+    specify_node_names: Sequence[str] | None = None,
 ) -> ModelProto:
     """Convert an ONNX model with default or given passes
 

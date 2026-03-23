@@ -460,7 +460,6 @@ class TestMain:
             patch("onnxifier.__main__.convert_graph") as mock_convert_graph,
             patch("builtins.print"),
         ):
-
             mock_graph = MagicMock()
             mock_graph.save.return_value = Path("output.onnx")
             mock_convert_graph.return_value = mock_graph
@@ -503,7 +502,6 @@ class TestMain:
             patch("onnxifier.__main__.convert_graph") as mock_convert_graph,
             patch("builtins.print"),
         ):
-
             mock_graph = MagicMock()
             mock_graph.save.return_value = Path("output.onnx")
             mock_convert_graph.return_value = mock_graph
@@ -547,7 +545,6 @@ class TestMain:
             patch("onnxifier.__main__.convert_graph") as mock_convert_graph,
             patch("builtins.print"),
         ):
-
             mock_graph = MagicMock()
             mock_graph.save.return_value = Path("output.onnx")
             mock_convert_graph.return_value = mock_graph
@@ -569,7 +566,6 @@ class TestMain:
             patch("onnxifier.__main__.convert_graph") as mock_convert_graph,
             patch("builtins.print"),
         ):
-
             mock_graph = MagicMock()
             mock_graph.save.return_value = Path("output.onnx")
             mock_convert_graph.return_value = mock_graph
@@ -589,7 +585,6 @@ class TestMain:
             patch("onnxifier.__main__.convert_graph") as mock_convert_graph,
             patch("builtins.print"),
         ):
-
             mock_graph = MagicMock()
             mock_graph.save.return_value = Path("output.onnx")
             mock_convert_graph.return_value = mock_graph
@@ -623,7 +618,6 @@ class TestMain:
             patch("onnxifier.__main__.convert_graph") as mock_convert_graph,
             patch("builtins.print"),
         ):
-
             mock_graph = MagicMock()
             mock_graph.save.return_value = Path("output.onnx")
             mock_convert_graph.return_value = mock_graph

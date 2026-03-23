@@ -14,8 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import List
-
 import numpy as np
 from onnx.helper import make_node
 from onnx.onnx_pb import NodeProto
@@ -41,7 +39,7 @@ class GatherElementsToGatherNDRewrite(Rewriter):
         pattern.add_edge(tile, gatherElements)
         super().__init__(pattern)
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto]):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
         tile, gatherElements = nodes
 
         # check

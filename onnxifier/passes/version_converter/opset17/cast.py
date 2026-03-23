@@ -14,8 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import List
-
 from onnx.onnx_pb import NodeProto
 
 from .... import OnnxGraph
@@ -31,7 +29,7 @@ class Cast(Rewriter):
     def __init__(self):
         super().__init__(SingleNodePattern("Cast"))
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto], *args, **kwargs):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto], *args, **kwargs):
         node = nodes[0]
         self.remove_attribute(node, "saturate")
 
@@ -43,6 +41,6 @@ class CastLike(Rewriter):
     def __init__(self):
         super().__init__(SingleNodePattern("CastLike"))
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto], *args, **kwargs):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto], *args, **kwargs):
         node = nodes[0]
         self.remove_attribute(node, "saturate")

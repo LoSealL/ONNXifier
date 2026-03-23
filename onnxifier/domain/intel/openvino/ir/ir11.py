@@ -16,7 +16,6 @@ limitations under the License.
 
 from os import PathLike
 from pathlib import Path
-from typing import List, Optional, Union
 from xml.etree import ElementTree
 
 import networkx as nx
@@ -141,9 +140,9 @@ def _graph_to_onnx(graph: nx.MultiDiGraph) -> onnx.ModelProto:
         node_type = node_attrs.pop("type")
         node_inputs = node_attrs.pop("inputs", {})
         node_outputs = node_attrs.pop("outputs", {})
-        outputs_name: List[str] = []
-        outputs_shape: List[List[int]] = []
-        outputs_dtype: List[str] = []
+        outputs_name: list[str] = []
+        outputs_shape: list[list[int]] = []
+        outputs_dtype: list[str] = []
         for _, i in sorted(node_outputs.items(), key=lambda x: int(x[0])):
             outputs_name.append(f"{node_name}_{i['name']}")
             outputs_shape.append(list(map(int, i["dim"])))
@@ -167,7 +166,7 @@ def _graph_to_onnx(graph: nx.MultiDiGraph) -> onnx.ModelProto:
             values_info.append(make_tensor_value_info(name, dtype, shape))
         try:
             if node_type == "Parameter":
-                par_shape: List[int | str] = []
+                par_shape: list[int | str] = []
                 for i, dim in enumerate(node_attrs.pop("shape").split(",")):
                     if dim == "?":
                         par_shape.append(f"D{i}")
@@ -182,7 +181,7 @@ def _graph_to_onnx(graph: nx.MultiDiGraph) -> onnx.ModelProto:
                 input_names = [node_name]
             elif node_type == "Result":
                 result = next(iter(node_inputs.values()))
-                res_shape: List[int | str] = list(map(int, result["dim"]))
+                res_shape: list[int | str] = list(map(int, result["dim"]))
                 for i, dim in enumerate(res_shape):
                     if dim == -1:
                         res_shape[i] = f"Y{i}"
@@ -233,8 +232,8 @@ def _graph_to_onnx(graph: nx.MultiDiGraph) -> onnx.ModelProto:
 
 
 def ir_to_onnx(
-    model_path: Union[str, PathLike],
-    model_bin: Optional[Union[str, PathLike]] = None,
+    model_path: str | PathLike,
+    model_bin: str | PathLike | None = None,
 ) -> onnx.ModelProto:
     """Parse OpenVINO IR format XML to ``onnx.ModelProto``.
 

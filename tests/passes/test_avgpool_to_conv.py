@@ -43,10 +43,7 @@ def _build_avgpool(
     node = make_node("AveragePool", inputs=["x"], outputs=["y"], name="avg", **attrs)
     w = 8
     # compute output spatial sizes assuming ceil_mode=0 and auto_pad NOTSET
-    if pads is None:
-        pads_list = [0] * (2 * ndim)
-    else:
-        pads_list = list(pads)
+    pads_list = [0] * (2 * ndim) if pads is None else list(pads)
     out_spatial = []
     for d in range(ndim):
         in_d = w

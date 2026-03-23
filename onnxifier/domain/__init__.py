@@ -16,7 +16,6 @@ limitations under the License.
 
 import os
 from pathlib import Path
-from typing import List, Optional
 
 import onnx
 
@@ -40,7 +39,7 @@ def _lazy_load_xml_frontend():
 
 def openvino_xml_to_onnx_graph(
     xml_path: str | os.PathLike | onnx.ModelProto,
-    bin_path: Optional[str | os.PathLike] = None,
+    bin_path: str | os.PathLike | None = None,
 ):
     """Isolate OpenVINO domain unless a IR xml is detected."""
     key = _make_key(IR_DOMAIN)
@@ -51,7 +50,7 @@ def openvino_xml_to_onnx_graph(
 
 def detect_domain(
     model: str | os.PathLike | onnx.ModelProto,
-) -> List[onnx.OperatorSetIdProto]:
+) -> list[onnx.OperatorSetIdProto]:
     """Detect a custom domain of a model."""
 
     if isinstance(model, onnx.ModelProto):

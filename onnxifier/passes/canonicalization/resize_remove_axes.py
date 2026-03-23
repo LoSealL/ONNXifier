@@ -14,8 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import List
-
 import numpy as np
 from onnx.onnx_pb import NodeProto
 
@@ -40,7 +38,7 @@ class ResizeRemoveAxesRewriter(Rewriter):
     def __init__(self):
         super().__init__(SingleNodePattern("Resize"))
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto], *args, **kwargs):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto], *args, **kwargs):
         node = nodes[0]
         if axes := self.get_attribute(node, "axes"):  # type: ignore
             input_shape = graph.tensor_shape(node.input[0])

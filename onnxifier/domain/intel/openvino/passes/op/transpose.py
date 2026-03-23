@@ -14,8 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import List, Optional
-
 from onnx.helper import make_node
 from onnx.onnx_pb import NodeProto
 
@@ -33,8 +31,8 @@ class Transpose(BaseNodeConversion):
     """
 
     def _guess_perm(
-        self, src_shape: List[int | str], target_shape: List[int | str]
-    ) -> Optional[List[int]]:
+        self, src_shape: list[int | str], target_shape: list[int | str]
+    ) -> list[int] | None:
         assert len(src_shape) == len(target_shape)
         # do not modify the original list directly
         src_shape_copy = src_shape.copy()

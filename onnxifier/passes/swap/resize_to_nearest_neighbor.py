@@ -16,8 +16,6 @@ limitations under the License.
 
 # pylint: disable=arguments-differ
 
-from typing import List
-
 from onnx.onnx_pb import NodeProto
 
 from ...graph import OnnxGraph
@@ -33,7 +31,7 @@ class ResizeToNearestNeighborRewriter(Rewriter):
     def __init__(self):
         super().__init__(SingleNodePattern("Resize"))
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto]):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
         node_pb = nodes[0]
         mode = self.get_attribute(node_pb, "mode")
         if mode != "nearest":

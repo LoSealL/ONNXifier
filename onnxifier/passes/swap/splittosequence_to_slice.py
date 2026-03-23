@@ -16,8 +16,6 @@ limitations under the License.
 
 # pylint: disable=arguments-differ
 
-from typing import List
-
 import numpy as np
 from onnx.helper import make_node
 from onnx.onnx_pb import NodeProto
@@ -36,7 +34,7 @@ class SplitToSequenceToSliceRewriter(Rewriter):
     def __init__(self):
         super().__init__(SingleNodePattern("SplitToSequence"))
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto]):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
         node = nodes[0]
         sequence_consumers = graph.onnx_successors(node)
         axis = self.get_attribute(node, "axis", 0)
@@ -73,7 +71,7 @@ class SplitToSequenceToSliceRewriter(Rewriter):
         self,
         graph: OnnxGraph,
         node: NodeProto,
-        split: List[int],
+        split: list[int],
         axis: int,
         keepdims: bool,
     ):

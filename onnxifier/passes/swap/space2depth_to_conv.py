@@ -16,8 +16,6 @@ limitations under the License.
 
 # pylint: disable=arguments-differ
 
-from typing import List
-
 import numpy as np
 from onnx.helper import make_node, tensor_dtype_to_np_dtype
 from onnx.onnx_pb import NodeProto
@@ -36,7 +34,7 @@ class SpaceToDepthToConvRewriter(Rewriter):
     def __init__(self):
         super().__init__(pattern=SingleNodePattern("SpaceToDepth"))
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto], to_depthwise=False):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto], to_depthwise=False):
         s2d = nodes[0]
         blocksize = self.get_attribute(s2d, "blocksize")
         assert isinstance(blocksize, int)

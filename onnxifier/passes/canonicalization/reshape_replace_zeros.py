@@ -16,8 +16,6 @@ limitations under the License.
 
 # pylint: disable=arguments-differ
 
-from typing import List
-
 import numpy as np
 from onnx.onnx_pb import NodeProto
 
@@ -35,7 +33,7 @@ class ReshapeReplaceZerosRewriter(Rewriter):
     def __init__(self):
         super().__init__(SingleNodePattern("Reshape"))
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto]):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
         output_shape = graph.tensor_shape(nodes[0].output[0])
         target_shape = self.get_value(nodes[0].input[1])
         if target_shape is not None:

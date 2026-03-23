@@ -18,11 +18,12 @@ import gc
 import os
 import traceback
 import warnings
+from collections.abc import Iterable, Sequence
 from copy import deepcopy
 from io import IOBase
 from itertools import chain
 from pathlib import Path
-from typing import IO, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import IO
 from uuid import uuid4
 
 import networkx as nx
@@ -43,7 +44,7 @@ from .utils import chdir
 
 
 def _unique_opset(opset_import: Sequence[onnx.OperatorSetIdProto]):
-    domain_version: Dict[str, int] = {}
+    domain_version: dict[str, int] = {}
     for opset in opset_import:
         domain_version[opset.domain] = max(
             domain_version.get(opset.domain, 1), opset.version
@@ -63,8 +64,8 @@ class OnnxGraph(nx.DiGraph):
 
     def __init__(
         self,
-        model: Optional[onnx.ModelProto] = None,
-        base_dir: Optional[str] = None,
+        model: onnx.ModelProto | None = None,
+        base_dir: str | None = None,
     ) -> None:
         if model is None:
             super().__init__()
@@ -72,8 +73,8 @@ class OnnxGraph(nx.DiGraph):
             assert isinstance(model, onnx.ModelProto)
             super().__init__(name=model.graph.name)
             self._model = model
-            self._node_to_out: Dict[str, Sequence[str]] = {}
-            self._out_to_node: Dict[str, str] = {}
+            self._node_to_out: dict[str, Sequence[str]] = {}
+            self._out_to_node: dict[str, str] = {}
             self._functions = {f.name: f for f in model.functions}
             try:
                 graph = onnx.shape_inference.infer_shapes(model).graph
@@ -88,7 +89,7 @@ class OnnxGraph(nx.DiGraph):
             # read-only value info
             self._value_info = graph.value_info
             # write-only value info
-            self._value_info_update: List[onnx.ValueInfoProto] = []
+            self._value_info_update: list[onnx.ValueInfoProto] = []
             self._keep_value_info = False
             for node in graph.node:
                 self._add_onnx_node_internal(node)
@@ -96,7 +97,7 @@ class OnnxGraph(nx.DiGraph):
             # OnnxGraph save external tensors to one file, and this variable keeps
             # the parent directory of the tensor file, which is used to specify
             # a correct working directory when loading external data into onnx model.
-            self._external_base: Optional[str] = self._get_external_base(base_dir)
+            self._external_base: str | None = self._get_external_base(base_dir)
 
     def _get_external_base(self, base_dir: str | None) -> str | None:
         err_msg = ""
@@ -216,19 +217,19 @@ class OnnxGraph(nx.DiGraph):
                     self.remove_output(output_name)
         self.remove_node(name)
 
-    def onnx_predecessors(self, n: onnx.NodeProto | str) -> List[onnx.NodeProto]:
+    def onnx_predecessors(self, n: onnx.NodeProto | str) -> list[onnx.NodeProto]:
         """Returns a list of predecessor nodes of n."""
         assert isinstance(n, (onnx.NodeProto, str))
         preds = self.predecessors(n if isinstance(n, str) else n.name)
         return [self.nodes[p]["pb"] for p in preds]
 
-    def onnx_successors(self, n: onnx.NodeProto | str) -> List[onnx.NodeProto]:
+    def onnx_successors(self, n: onnx.NodeProto | str) -> list[onnx.NodeProto]:
         """Returns a list of successors nodes of n."""
         assert isinstance(n, (onnx.NodeProto, str))
         succs = self.successors(n if isinstance(n, str) else n.name)
         return [self.nodes[s]["pb"] for s in succs]
 
-    def onnx_siblings(self, n: onnx.NodeProto | str) -> List[onnx.NodeProto]:
+    def onnx_siblings(self, n: onnx.NodeProto | str) -> list[onnx.NodeProto]:
         r"""Returns a list of sibling nodes of n.
 
         A sibling node is defined as a node that:
@@ -246,11 +247,8 @@ class OnnxGraph(nx.DiGraph):
             is [e0].
         """
         assert isinstance(n, (onnx.NodeProto, str))
-        parents_and_edges: Dict[onnx.NodeProto, str] = {}
-        if isinstance(n, str):
-            node_name = n
-        else:
-            node_name = n.name
+        parents_and_edges: dict[onnx.NodeProto, str] = {}
+        node_name = n if isinstance(n, str) else n.name
         for parent in self.onnx_predecessors(n):
             edge_data = self.get_edge_data(parent.name, node_name)
             parents_and_edges[parent] = str(edge_data["edge"])
@@ -260,7 +258,7 @@ class OnnxGraph(nx.DiGraph):
                 if edge == self.get_edge_data(node.name, child.name).get("edge"):
                     yield child
 
-        siblings: List[onnx.NodeProto] = []
+        siblings: list[onnx.NodeProto] = []
         for parent, edge in parents_and_edges.items():
             for child in _child_and_edge(parent, edge):
                 if child.name != node_name:
@@ -270,7 +268,7 @@ class OnnxGraph(nx.DiGraph):
     def onnx_subgraph(self, nodes: Iterable[onnx.NodeProto | str]) -> "OnnxGraph":
         """Create a sub onnx graph from nodes"""
         sub: nx.DiGraph = self.subgraph(  # type: ignore
-            (n if isinstance(n, str) else n.name for n in nodes)
+            n if isinstance(n, str) else n.name for n in nodes
         )
         subonnx = make_graph([], f"subgraph of {self.name}", inputs=[], outputs=[])
         # inherite initializers and value infos
@@ -342,9 +340,9 @@ class OnnxGraph(nx.DiGraph):
             self._functions[func.name] = func
             self._model.opset_import.extend(func.opset_import)
 
-    def tensor_info(self, name: str) -> Tuple[List[int | str] | None, int]:
+    def tensor_info(self, name: str) -> tuple[list[int | str] | None, int]:
         """Get shape and dtype of a tensor by its name."""
-        shape: Optional[List[int | str]] = None
+        shape: list[int | str] | None = None
         dtype = onnx.TensorProto.UNDEFINED
         if name in self.inputs or name in self.outputs:
             value_infos = list(chain(self.input, self.output))
@@ -380,17 +378,17 @@ class OnnxGraph(nx.DiGraph):
                     dtype = tensor.data_type
         return shape, dtype
 
-    def tensor_shape(self, name: str) -> List[int | str]:
+    def tensor_shape(self, name: str) -> list[int | str]:
         """Get shape from a given tensor name."""
         shape, _ = self.tensor_info(name)
         if shape is None:
             raise ValueError(f"Can't find tensor shape with name '{name}'")
         return shape
 
-    def static_tensor_shape(self, name: str) -> List[int]:
+    def static_tensor_shape(self, name: str) -> list[int]:
         """Get shape from a given tensor name, and ensure it is static."""
         shape = self.tensor_shape(name)
-        static_shape: List[int] = []
+        static_shape: list[int] = []
         for ind, i in enumerate(shape):
             if isinstance(i, str) or i < 1:
                 raise ValueError(f"shape[{ind}] is dynamic: {i}")
@@ -481,7 +479,7 @@ class OnnxGraph(nx.DiGraph):
         self._node_to_out[output_node.name] = output_node.output
 
     def set_value_info(
-        self, name: str, shape: Sequence[int | str], dtype: Optional[int] = None
+        self, name: str, shape: Sequence[int | str], dtype: int | None = None
     ):
         """Overwrite the value info of a tensor.
 
@@ -506,7 +504,7 @@ class OnnxGraph(nx.DiGraph):
         self._value_info_update.append(make_tensor_value_info(name, dtype, shape))
 
     def set_seqeuence_info(
-        self, name: str, shape: Sequence[int | str], dtype: Optional[int] = None
+        self, name: str, shape: Sequence[int | str], dtype: int | None = None
     ):
         """Overwrite the value info of a sequence.
 
@@ -548,7 +546,7 @@ class OnnxGraph(nx.DiGraph):
         return self._model.graph.initializer
 
     @property
-    def initializers(self) -> Dict[str, onnx.TensorProto]:
+    def initializers(self) -> dict[str, onnx.TensorProto]:
         """Return a dict of graph initializer tensors."""
         return {i.name: i for i in self.initializer}
 
@@ -579,12 +577,12 @@ class OnnxGraph(nx.DiGraph):
         self._model.opset_import.append(make_operatorsetid("", version))
 
     @property
-    def functions(self) -> Dict[str, onnx.FunctionProto]:
+    def functions(self) -> dict[str, onnx.FunctionProto]:
         """Return the functions inside the model."""
         return self._functions
 
     @property
-    def external_base(self) -> Optional[str]:
+    def external_base(self) -> str | None:
         """Return the base directory of external data."""
         return self._external_base
 
@@ -729,7 +727,7 @@ class OnnxGraph(nx.DiGraph):
     def save(
         self,
         model_path: str | os.PathLike | IO[bytes],
-        format: Optional[str] = None,
+        format: str | None = None,
         save_as_external_data: bool = False,
         infer_shapes: bool = True,
         check: bool = True,

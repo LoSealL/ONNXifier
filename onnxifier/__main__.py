@@ -19,8 +19,8 @@ limitations under the License.
 import argparse
 import json
 from collections import defaultdict
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Optional, Sequence
 
 from . import ONNXIFIER_OPSET, PassManager, convert_graph
 from .checker import check_accuracy
@@ -183,7 +183,7 @@ def parse_unknown_args(args: Sequence[str]) -> tuple[str, str, dict, list[str]]:
     return input_name, output_name, domain_configs, invalid_args
 
 
-def read_configs_from_args_or_file(args, argv) -> tuple[Path, Path, Optional[dict]]:
+def read_configs_from_args_or_file(args, argv) -> tuple[Path, Path, dict | None]:
     """Read configuration from command-line arguments or a config file.
 
     Args:

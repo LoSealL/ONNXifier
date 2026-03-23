@@ -14,8 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import List
-
 import numpy as np
 from onnx.helper import make_node
 from onnx.onnx_pb import NodeProto
@@ -88,7 +86,7 @@ class LayerNormalization(Rewriter):
         self += [mean_x, sub_x_mean, square_d, var_x, epsilon_cst, var_eps]
         return sub_x_mean, var_eps
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto], *args, **kwargs):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto], *args, **kwargs):
         node = nodes[0]
         has_bias = len(node.input) == 3
         delta, var_x_eps = self._var_x(node)

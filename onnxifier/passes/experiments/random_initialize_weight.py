@@ -15,7 +15,6 @@ limitations under the License.
 """
 
 # pylint: disable=arguments-differ
-from typing import List
 
 import networkx as nx
 import numpy as np
@@ -41,7 +40,7 @@ class RandomInitializeWeightRewriter(Rewriter):
             if graph.nodes[n]["pb"].op_type == "Constant":
                 yield graph.nodes[n]["pb"]
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto]):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
         node = nodes[0]
         for c in self._get_constant(graph, node):
             value = self.get_value(c)

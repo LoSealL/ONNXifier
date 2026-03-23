@@ -15,20 +15,9 @@ limitations under the License.
 """
 
 import inspect
+from collections.abc import Callable, Iterator, Sequence
 from pathlib import Path
-from typing import (
-    Callable,
-    Dict,
-    Generic,
-    Iterator,
-    List,
-    Optional,
-    Protocol,
-    Sequence,
-    Type,
-    TypeVar,
-    cast,
-)
+from typing import Generic, Optional, Protocol, TypeVar, cast
 
 from tabulate import tabulate
 
@@ -40,8 +29,8 @@ from .rewriter import Rewriter
 class GraphNode(Protocol):
     """Any node to be registered in the Registry shall follow this protocol."""
 
-    __DEPS__: List[str | Type[Rewriter]]
-    __PATCHES__: List[str | Type[Rewriter]]
+    __DEPS__: list[str | type[Rewriter]]
+    __PATCHES__: list[str | type[Rewriter]]
 
 
 T = TypeVar("T", bound=GraphNode)
@@ -49,13 +38,12 @@ F = TypeVar("F", bound=Callable)
 
 
 class FuncInterfaceWrapper(Generic[T]):
-
     def __init__(
         self,
         func: Callable,
-        name: Optional[str],
-        deps: Optional[List[str | Type[Rewriter]]],
-        patches: Optional[List[str | Type[Rewriter]]],
+        name: str | None,
+        deps: list[str | type[Rewriter]] | None,
+        patches: list[str | type[Rewriter]] | None,
     ):
         # pylint: disable=invalid-name
         self.__FUNC = func
@@ -89,8 +77,8 @@ class Registry(Generic[T]):
     """
 
     def __init__(self, name=None, parent: Optional["Registry[T]"] = None) -> None:
-        self._bucks: Dict[str, Type[T] | FuncInterfaceWrapper[T]] = {}
-        self._configs: Dict = {}
+        self._bucks: dict[str, type[T] | FuncInterfaceWrapper[T]] = {}
+        self._configs: dict = {}
         self._name = name or "<Registry>"
         self._parent = parent
         if parent is not None:
@@ -112,9 +100,9 @@ class Registry(Generic[T]):
 
     def register(
         self,
-        name: Optional[str] = None,
-        deps: Optional[List[str | Type[Rewriter]]] = None,
-        patch: Optional[List[str | Type[Rewriter]]] = None,
+        name: str | None = None,
+        deps: list[str | type[Rewriter]] | None = None,
+        patch: list[str | type[Rewriter]] | None = None,
     ):
         """A decorator to register an object.
 
@@ -147,7 +135,7 @@ class Registry(Generic[T]):
                 func.__NAME__ = name or self._legal_name(func.__name__)
                 func.__DEPS__.extend(deps or [])
                 func.__PATCHES__.extend(patch or [])
-                self._bucks[func.__NAME__] = cast(Type[T], func)
+                self._bucks[func.__NAME__] = cast(type[T], func)
                 self._configs[func.__NAME__] = inspect.signature(func.rewrite)
             if self._parent is not None:
                 self._parent.register(name, deps, patch)(func)
@@ -156,7 +144,7 @@ class Registry(Generic[T]):
 
         return wrapper
 
-    def get(self, name: str | Type[T]) -> Optional[T]:
+    def get(self, name: str | type[T]) -> T | None:
         """Get a registered object by its name."""
         if inspect.isclass(name):
             return name()
@@ -165,7 +153,7 @@ class Registry(Generic[T]):
             # functor.__NAME__ = name  # rename the instance
             return functor
 
-    def get_type(self, name: str | Type[T]):
+    def get_type(self, name: str | type[T]):
         """Get a registered object type by its name."""
         if inspect.isclass(name):
             return name
@@ -189,7 +177,7 @@ class Registry(Generic[T]):
         reg._configs = {k: self._configs[k] for k in passes}
         return reg
 
-    def __getitem__(self, name: str | Type[T]) -> T:
+    def __getitem__(self, name: str | type[T]) -> T:
         """Get a registered object by its name."""
         obj = self.get(name)
         if obj is None:
@@ -220,9 +208,9 @@ class Registry(Generic[T]):
 
 
 def get_pass_manager(
-    include: Optional[Sequence[str]] = None,
-    exclude: Optional[Sequence[str]] = None,
-    configs: Optional[Dict[str, Dict[str, str | int | float | bool]]] = None,
+    include: Sequence[str] | None = None,
+    exclude: Sequence[str] | None = None,
+    configs: dict[str, dict[str, str | int | float | bool]] | None = None,
 ):
     """Lazy load pass manager"""
     # pylint: disable=import-outside-toplevel

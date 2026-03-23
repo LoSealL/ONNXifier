@@ -17,7 +17,6 @@ limitations under the License.
 # pylint: disable=arguments-differ
 
 from collections import defaultdict
-from typing import Dict, List
 
 import networkx as nx
 import numpy as np
@@ -37,7 +36,7 @@ def yolov5_5d_to_4d(graph: OnnxGraph) -> OnnxGraph:  # noqa: C901
     """Convert YOLOv5 5D subgraph to equivalent 4D subgraph."""
     node_to_add = []
     node_to_remove = []
-    nodes_5d: Dict[int, List[int]] = defaultdict(list)
+    nodes_5d: dict[int, list[int]] = defaultdict(list)
     for node_id in nx.topological_sort(graph):
         node_pb = graph.nodes[node_id]["pb"]
         if node_pb.op_type == "Constant":
@@ -140,7 +139,7 @@ class Plate5DTo4DRewriter(Rewriter):
         )
         super().__init__(pattern)
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto]):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
         reshapes = [i for i in nodes if i.op_type == "Reshape"]
         assert len(reshapes) == 2, f"{len(reshapes)} reshapes found, expected 2"
         if not nx.has_path(graph, reshapes[0].name, reshapes[1].name):

@@ -14,8 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import List, Optional
-
 import numpy as np
 from onnx import NodeProto
 from onnx.helper import make_node
@@ -45,7 +43,7 @@ class ResizeToConvTransposedRewriter(Rewriter):
     def __init__(self):
         super().__init__(SingleNodePattern("Resize"))
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto]):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
         node = nodes[0]
         input_shape = graph.tensor_shape(node.input[0])
         if not self._is_valid_input_shape(input_shape):
@@ -77,9 +75,7 @@ class ResizeToConvTransposedRewriter(Rewriter):
         valid &= all(isinstance(d, int) for d in input_shape[2:])
         return valid
 
-    def _get_scales(
-        self, node: NodeProto, input_shape: List[int]
-    ) -> Optional[List[int]]:
+    def _get_scales(self, node: NodeProto, input_shape: list[int]) -> list[int] | None:
         # Prefer explicit scales if present; otherwise, derive from sizes
         scales = None
         axes: list[int] = self.get_attribute(node, "axes", [])  # type: ignore
@@ -121,7 +117,7 @@ class ResizeToConvTransposedRewriter(Rewriter):
                 return None
             return scales.astype(np.int64).tolist()
 
-    def _build_nearest(self, node: NodeProto, channels: int, scales: List[int]):
+    def _build_nearest(self, node: NodeProto, channels: int, scales: list[int]):
         weight_value = np.ones((channels, 1, *scales), dtype=np.float32)
         weight_cst = make_constant(f"{node.name}/weights", weight_value)
         convt = make_node(
@@ -134,7 +130,7 @@ class ResizeToConvTransposedRewriter(Rewriter):
         )
         return weight_cst, convt
 
-    def _build_linear(self, node: NodeProto, channels: int, scales: List[int]):
+    def _build_linear(self, node: NodeProto, channels: int, scales: list[int]):
         ctm = self.get_attribute(node, "coordinate_transformation_mode", "half_pixel")
         # Default to half_pixel-like mapping
         kernel_sizes = [2 * s for s in scales]

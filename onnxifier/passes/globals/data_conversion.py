@@ -17,7 +17,6 @@ limitations under the License.
 # pylint: disable=arguments-differ
 
 import itertools
-from typing import List
 
 from onnx import NodeProto, TensorProto
 from onnx.helper import make_attribute
@@ -65,7 +64,7 @@ class CanonicalizeResizeScale(Rewriter):
     def __init__(self):
         super().__init__(SingleNodePattern("Resize"))
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto]):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
         node = nodes[0]
         if node.input[2]:
             self += cast_in(node, 2, TensorProto.FLOAT)

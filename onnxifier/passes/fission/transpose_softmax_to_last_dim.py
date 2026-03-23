@@ -16,8 +16,6 @@ limitations under the License.
 
 # pylint: disable=arguments-differ
 
-from typing import List
-
 from onnx.helper import make_node
 from onnx.onnx_pb import NodeProto
 
@@ -44,7 +42,7 @@ class TransposeSoftmaxToLastDimRewriter(Rewriter):
     def __init__(self):
         super().__init__(SingleNodePattern("Softmax"))
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto], *args, **kwargs):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto], *args, **kwargs):
         node = nodes[0]
         axis = self.get_attribute(node, "axis")
         assert axis is None or isinstance(axis, (int, float, str))

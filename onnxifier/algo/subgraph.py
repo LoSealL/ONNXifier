@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import Iterable, List, Optional, Tuple
+from collections.abc import Iterable
 
 from onnx import NodeProto
 
@@ -23,7 +23,7 @@ from ..graph import OnnxGraph
 
 def find_inbound_nodes(
     graph: OnnxGraph, node: NodeProto, startpoints: Iterable[str]
-) -> Tuple[List[NodeProto], List[NodeProto]]:
+) -> tuple[list[NodeProto], list[NodeProto]]:
     r"""Find a set of predecessors of the given node and all of them have a path
     to the given node while the path doesn't contain any node in the given set
     ``startpoints``.
@@ -68,7 +68,7 @@ def find_inbound_nodes(
 
 def find_outbound_nodes(
     graph: OnnxGraph, node: NodeProto, endpoints: Iterable[str]
-) -> Tuple[List[NodeProto], List[NodeProto]]:
+) -> tuple[list[NodeProto], list[NodeProto]]:
     r"""Find a set of successors of the given node and all of them have a path
     to the given node while the path doesn't contain any node in the given set
     ``endpoints``.
@@ -114,9 +114,9 @@ def find_outbound_nodes(
 def find_sibling_nodes(
     graph: OnnxGraph,
     node: NodeProto,
-    siblings: Optional[Iterable[str]] = None,
-    parents: Optional[Iterable[str]] = None,
-) -> List[NodeProto]:
+    siblings: Iterable[str] | None = None,
+    parents: Iterable[str] | None = None,
+) -> list[NodeProto]:
     r"""Find the sibling nodes of the given node in the graph.
 
     A sibling node is a node that share the same parent node with the given one.
@@ -146,10 +146,7 @@ def find_sibling_nodes(
 
     if parents is None:
         parents = [op.op_type for op in graph.onnx_predecessors(node)]
-    if siblings is None:
-        siblings = [node.op_type]
-    else:
-        siblings = list(siblings) + [node.op_type]
+    siblings = [node.op_type] if siblings is None else list(siblings) + [node.op_type]
 
     _, parent_nodes = find_inbound_nodes(graph, node, parents)
     sibling_nodes = set()

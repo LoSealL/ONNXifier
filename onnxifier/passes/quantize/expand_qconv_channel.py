@@ -15,7 +15,6 @@ limitations under the License.
 """
 
 # pylint: disable=arguments-differ
-from typing import List
 
 import numpy as np
 from onnx.helper import make_tensor_type_proto, make_value_info
@@ -42,7 +41,7 @@ class ExpandQConvChannelRewriter(Rewriter):
         pattern.add_edge(dqpattern, conv)
         super().__init__(pattern=pattern)
 
-    def rewrite(self, graph: OnnxGraph, nodes: List):
+    def rewrite(self, graph: OnnxGraph, nodes: list):
         q_node, _, conv_node = nodes
         n, ic, h, w = graph.tensor_shape(conv_node.input[0])
         if ic != 3:

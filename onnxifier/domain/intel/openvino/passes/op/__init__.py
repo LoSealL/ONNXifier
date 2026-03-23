@@ -16,7 +16,6 @@ limitations under the License.
 
 from abc import abstractmethod
 from copy import deepcopy
-from typing import List, Optional
 
 from onnx.onnx_pb import NodeProto
 
@@ -34,12 +33,12 @@ from ...passes import (
 class BaseNodeConversion(Rewriter):
     """Abstract class for a single IR node conversion."""
 
-    def __init__(self, pattern: Optional[Pattern] = None, repeat=RewriterRepeat.ONCE):
+    def __init__(self, pattern: Pattern | None = None, repeat=RewriterRepeat.ONCE):
         if pattern is None:
             pattern = SingleNodePattern(self.__class__.__name__).with_attr("version")
         super().__init__(pattern=pattern, repeat=repeat)
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto], *args, **kwargs):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto], *args, **kwargs):
         node = nodes[0]
         new_node = self.replace(graph, deepcopy(node))
         self += new_node

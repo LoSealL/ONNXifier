@@ -14,8 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import List
-
 import numpy as np
 from onnx import NodeProto
 from onnx.helper import make_node, make_tensor
@@ -39,7 +37,7 @@ class Col2Im(Rewriter):
     def __init__(self):
         super().__init__(SingleNodePattern("Col2Im"))
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto], *args, **kwargs):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto], *args, **kwargs):
         node = nodes[0]
         dilations = self.get_attribute(node, "dilations")
         if isinstance(dilations, list) and any(i != 1 for i in dilations):
@@ -70,8 +68,8 @@ class Col2Im(Rewriter):
         self,
         graph: OnnxGraph,
         node: NodeProto,
-        stride: List[int],
-        padding: List[int],
+        stride: list[int],
+        padding: list[int],
     ) -> bool:
         """Try to convert Col2Im to DepthToSpace for simple cases."""
 
@@ -117,8 +115,8 @@ class Col2Im(Rewriter):
         self,
         graph: OnnxGraph,
         node: NodeProto,
-        stride: List[int],
-        padding: List[int],
+        stride: list[int],
+        padding: list[int],
     ):
         """General Col2Im implementation using ScatterElements for complex cases.
 
@@ -181,7 +179,7 @@ class Col2Im(Rewriter):
             int(np.ceil((i + p[0] + p[1] - k + 1) / s))
             for i, p, k, s in zip(image_shape, paddings, block_shape, stride)
         ]
-        assert L == np.prod(spatial_shape)
+        assert np.prod(spatial_shape) == L
         # Input X (omit batch and channel) has shape [*block_shape, *spatial_shape]
         block_indices = np.meshgrid(*[np.arange(d) for d in block_shape], indexing="ij")
         block_indices = np.stack(block_indices, axis=-1)

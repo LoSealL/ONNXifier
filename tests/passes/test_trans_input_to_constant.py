@@ -177,7 +177,8 @@ def test_trans_input_to_constant_shape_incompatible():
         ["trans_input_to_constant"],
         configs={
             "trans_input_to_constant": dict(
-                input_name="w0", value=np.ones([4, 3, 3, 3], "float32")  # Wrong shape
+                input_name="w0",
+                value=np.ones([4, 3, 3, 3], "float32"),  # Wrong shape
             )
         },
     )
@@ -238,7 +239,8 @@ def test_trans_input_to_constant_same_ndim_different_shape():
         ["trans_input_to_constant"],
         configs={
             "trans_input_to_constant": dict(
-                input_name="b", value=np.ones([1, 3, 1, 1], "float32")  # Same shape
+                input_name="b",
+                value=np.ones([1, 3, 1, 1], "float32"),  # Same shape
             )
         },
     )

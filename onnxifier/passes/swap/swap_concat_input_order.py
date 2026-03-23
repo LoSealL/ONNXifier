@@ -15,7 +15,6 @@ limitations under the License.
 """
 
 from collections.abc import Sequence
-from typing import List
 
 import numpy as np
 from onnx.onnx_pb import NodeProto
@@ -53,7 +52,7 @@ class SwapConcatInputOrderRewriter(Rewriter):
     def rewrite(
         self,
         graph: OnnxGraph,
-        nodes: List[NodeProto],
+        nodes: list[NodeProto],
         order: Sequence[int] | None = None,
     ):
         if not order:

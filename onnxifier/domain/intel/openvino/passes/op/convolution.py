@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 import itertools
-from typing import Any, Dict
+from typing import Any
 
 from onnx.helper import make_node
 from onnx.onnx_pb import NodeProto
@@ -61,7 +61,7 @@ class Convolution(BaseNodeConversion):
         assert isinstance(pads_end, str) or pads_end is None
         pads_end = text_to_integers(pads_end)
         auto_pad = _trans_auto_pad(self.get_attribute(ori_node, "auto_pad"))
-        attrs: Dict[str, Any] = dict(dilations=dilations, strides=strides)
+        attrs: dict[str, Any] = dict(dilations=dilations, strides=strides)
         if auto_pad == "NOTSET":
             assert pads_begin is not None and pads_end is not None
             attrs["pads"] = list(itertools.chain(pads_begin, pads_end))
@@ -101,7 +101,7 @@ class GroupConvolution(BaseNodeConversion):
         assert isinstance(pads_end, str) or pads_end is None
         pads_end = text_to_integers(pads_end)
         auto_pad = _trans_auto_pad(self.get_attribute(ori_node, "auto_pad"))
-        attrs: Dict[str, Any] = dict(dilations=dilations, strides=strides)
+        attrs: dict[str, Any] = dict(dilations=dilations, strides=strides)
         if auto_pad == "NOTSET":
             assert pads_begin is not None and pads_end is not None
             attrs["pads"] = list(itertools.chain(pads_begin, pads_end))

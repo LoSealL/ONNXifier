@@ -14,8 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import List
-
 from onnx.helper import make_node
 from onnx.onnx_pb import NodeProto
 
@@ -35,7 +33,7 @@ class Mish(Rewriter):
     def __init__(self):
         super().__init__(SingleNodePattern("Mish"))
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto]):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
         node = nodes[0]
         softplus = make_node(
             "Softplus",

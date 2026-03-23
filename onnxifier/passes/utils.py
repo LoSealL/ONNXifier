@@ -15,9 +15,9 @@ limitations under the License.
 """
 
 import tempfile
+from collections.abc import Iterable, Sequence
 from copy import deepcopy
 from pathlib import Path
-from typing import Dict, Iterable, Optional, Sequence, Set, Tuple
 
 import networkx as nx
 import numpy as np
@@ -163,8 +163,8 @@ def is_elewise(node: NodeProto | str) -> bool:
 
 
 def evaluate_on_node(
-    graph, node: NodeProto, output_name: Optional[str] = None
-) -> Optional[np.ndarray]:
+    graph, node: NodeProto, output_name: str | None = None
+) -> np.ndarray | None:
     """Evaluate an output of a given node in the graph.
 
     Args:
@@ -271,7 +271,7 @@ def cast_out(node: NodeProto, index: int, to: int) -> NodeProto:
 
 
 def _populate_functions(
-    nodes_type: Set[str], function_map: Dict[str, onnx.FunctionProto]
+    nodes_type: set[str], function_map: dict[str, onnx.FunctionProto]
 ) -> Iterable[onnx.FunctionProto]:
     """find all used functions"""
     used_functions = {}
@@ -287,8 +287,8 @@ def _populate_functions(
 def extract_function(
     graph: OnnxGraph,
     nodes: Sequence[onnx.NodeProto],
-    inputs: Sequence[Tuple[str, str]],
-    outputs: Sequence[Tuple[str, str]],
+    inputs: Sequence[tuple[str, str]],
+    outputs: Sequence[tuple[str, str]],
 ) -> OnnxGraph:
     """Create a new onnx graph from nodes"""
 

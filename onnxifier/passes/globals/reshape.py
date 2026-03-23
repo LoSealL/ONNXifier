@@ -14,14 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import Dict, List
-
 from ... import OnnxGraph
 from .. import PASSES
 
 
 @PASSES.register("reshape_model", deps=["infer_shape"])
-def reshape_model(graph: OnnxGraph, shape_info: Dict[str, List[int | str]]):
+def reshape_model(graph: OnnxGraph, shape_info: dict[str, list[int | str]]):
     """Update model input and output dimensions.
 
     Args:

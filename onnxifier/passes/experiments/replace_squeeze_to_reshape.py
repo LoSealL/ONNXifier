@@ -16,8 +16,6 @@ limitations under the License.
 
 # pylint: disable=arguments-differ
 
-from typing import List
-
 import numpy as np
 from onnx.helper import make_node
 from onnx.onnx_pb import NodeProto
@@ -36,7 +34,7 @@ class ReplaceSqueezeToReshapeRewriter(Rewriter):
     def __init__(self):
         super().__init__(SingleNodePattern("Squeeze"))
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto]):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
         output_shape = graph.static_tensor_shape(nodes[0].output[0])
         shape = make_constant(
             f"{nodes[0].name}/shape", np.array(output_shape, dtype=np.int64)

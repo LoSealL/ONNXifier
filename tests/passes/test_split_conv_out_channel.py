@@ -89,13 +89,16 @@ def test_split_conv_out_channel():
     pm = PassManager(["split_conv_out_channel"])
     graph = pm.optimize(graph, True)
     run2 = Evaluator(graph.model, "OnnxRuntime")
-    assert 8 == len(
-        list(
-            filter(
-                lambda n: n["pb"].op_type == "Conv",
-                graph.nodes.values(),
+    assert (
+        len(
+            list(
+                filter(
+                    lambda n: n["pb"].op_type == "Conv",
+                    graph.nodes.values(),
+                )
             )
         )
+        == 8
     )
 
     x = np.random.rand(1, 64, 16, 16).astype(np.float32)
@@ -111,13 +114,16 @@ def test_split_dwconv_out_channel():
     pm = PassManager(["split_conv_out_channel"])
     graph = pm.optimize(graph, True)
     run2 = Evaluator(graph.model, "OnnxRuntime")
-    assert 8 == len(
-        list(
-            filter(
-                lambda n: n["pb"].op_type == "Conv",
-                graph.nodes.values(),
+    assert (
+        len(
+            list(
+                filter(
+                    lambda n: n["pb"].op_type == "Conv",
+                    graph.nodes.values(),
+                )
             )
         )
+        == 8
     )
 
     x = np.random.rand(1, 1024, 16, 16).astype(np.float32)

@@ -92,7 +92,8 @@ class MVN(BaseNodeConversion):
             axis = int(axes_norm.flatten()[0])
             scale_s = graph.static_tensor_shape(ori_node.output[0])[axis:]
             scale = make_constant(
-                f"{ori_node.name}/scale", np.ones(scale_s, np.float32)  # type: ignore
+                f"{ori_node.name}/scale",
+                np.ones(scale_s, np.float32),  # type: ignore
             )
             self += scale
             return make_node(

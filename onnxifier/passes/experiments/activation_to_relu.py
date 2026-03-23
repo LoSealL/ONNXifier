@@ -15,7 +15,6 @@ limitations under the License.
 """
 
 # pylint: disable=arguments-differ
-from typing import List
 
 from onnx.helper import make_node
 from onnx.onnx_pb import NodeProto
@@ -37,7 +36,7 @@ class ActivationToReluRewriter(Rewriter):
         assert isinstance(pattern, Pattern)
         super().__init__(pattern)
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto], target: str = "Relu"):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto], target: str = "Relu"):
         assert target in ("Relu", "LeakyRelu", "PRelu")
         node = nodes[0]
 

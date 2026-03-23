@@ -17,7 +17,7 @@ limitations under the License.
 import logging
 import os
 from logging import Formatter, StreamHandler, addLevelName, getLevelName
-from typing import Literal, Union, overload
+from typing import Literal, overload
 
 
 def _default_level_from_env():
@@ -70,7 +70,7 @@ def set_level(level: str):
     _HDL.setLevel(level.upper())
 
 
-def is_enabled_for(level: Union[int, str]) -> bool:
+def is_enabled_for(level: int | str) -> bool:
     """Whether current log level is active."""
     if isinstance(level, str):
         from logging import _nameToLevel  # pylint:disable=import-outside-toplevel
@@ -91,7 +91,7 @@ def get_level(use_string: Literal[True]) -> str: ...  # noqa: E704
 def get_level(use_string: Literal[False]) -> int: ...  # noqa: E704
 
 
-def get_level(use_string: bool = True) -> Union[int, str]:
+def get_level(use_string: bool = True) -> int | str:
     """Get current logging level."""
     if use_string:
         return getLevelName(_HDL.level)

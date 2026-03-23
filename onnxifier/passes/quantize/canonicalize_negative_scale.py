@@ -14,8 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import List
-
 import numpy as np
 from onnx.helper import tensor_dtype_to_np_dtype
 from onnx.onnx_pb import NodeProto
@@ -46,7 +44,7 @@ class CanonicalizeNegativeScaleRewriter(Rewriter):
     def __init__(self):
         super().__init__(pattern=SingleNodePattern("DequantizeLinear"))
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto]):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
         node = nodes[0]
         if prev_n := self.get_input_node(node, 0):
             if prev_n.op_type in ("QuantizeLinear",):

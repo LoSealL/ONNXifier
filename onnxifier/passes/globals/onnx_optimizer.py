@@ -15,7 +15,6 @@ limitations under the License.
 """
 
 from contextlib import suppress
-from typing import List, Optional
 
 from ... import OnnxGraph
 from .. import L3
@@ -24,7 +23,7 @@ with suppress(ImportError):
     import onnxoptimizer
 
     @L3.register()
-    def onnx_optimizer(graph: OnnxGraph, passes: Optional[List[str]] = None):
+    def onnx_optimizer(graph: OnnxGraph, passes: list[str] | None = None):
         """Fuse op and remove isolated nodes.
 
         Args:

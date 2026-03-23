@@ -14,8 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import List
-
 import numpy as np
 from onnx.onnx_pb import NodeProto
 
@@ -47,7 +45,7 @@ class PadRemoveAxesRewriter(Rewriter):
     def __init__(self):
         super().__init__(SingleNodePattern("Pad"))
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto]):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
         pad_node = nodes[0]
 
         if len(pad_node.input) < 4 or not pad_node.input[3]:

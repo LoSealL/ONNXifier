@@ -17,7 +17,6 @@ limitations under the License.
 # pylint: disable=arguments-differ
 
 import json
-from typing import List
 
 from onnx.helper import make_function, make_node, make_operatorsetid
 from onnx.onnx_pb import NodeProto
@@ -60,7 +59,7 @@ class FuseSwishRewriter(Rewriter):
         pattern.add_edge(sigm, mul)
         super().__init__(pattern)
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto]):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
         _, sigmoid, mul = nodes
         swish = make_node(
             "Swish",

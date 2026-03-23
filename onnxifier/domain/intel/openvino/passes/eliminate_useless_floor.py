@@ -14,8 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import List
-
 from onnx.onnx_pb import NodeProto, TensorProto
 
 from . import IR_PASSES, OnnxGraph, Rewriter, SingleNodePattern
@@ -37,12 +35,10 @@ class EliminateUselessFloorRewriter(Rewriter):
     def __init__(self):
         super().__init__(pattern=SingleNodePattern("Floor"))
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto]):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
         node = nodes[0]
         _, input_type = graph.tensor_info(node.input[0])
-        if input_type is None:
-            return
-        elif input_type in (
+        if input_type is None or input_type in (
             TensorProto.FLOAT,
             TensorProto.FLOAT16,
             TensorProto.DOUBLE,

@@ -14,8 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import List
-
 import numpy as np
 from onnx.onnx_pb import NodeProto
 
@@ -32,7 +30,7 @@ class ShapeOfToConstantRewriter(Rewriter):
     def __init__(self):
         super().__init__(pattern=SingleNodePattern("ShapeOf"))
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto]):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
         node = nodes[0]
         input_shape, _ = graph.tensor_info(node.input[0])
         if input_shape is None:
@@ -41,10 +39,7 @@ class ShapeOfToConstantRewriter(Rewriter):
             return  # dynamic shape
 
         self -= node
-        if self.get_attribute(node, "output_type") == "i32":
-            dtype = "int32"
-        else:
-            dtype = "int64"
+        dtype = "int32" if self.get_attribute(node, "output_type") == "i32" else "int64"
         cst_node = make_constant(node.name, np.array(input_shape, dtype))
         cst_node.output[0] = node.output[0]
         self += cst_node

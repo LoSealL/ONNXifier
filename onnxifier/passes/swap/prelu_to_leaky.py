@@ -16,8 +16,6 @@ limitations under the License.
 
 # pylint: disable=arguments-differ
 
-from typing import List
-
 from onnx.helper import make_node
 from onnx.onnx_pb import NodeProto
 
@@ -34,7 +32,7 @@ class PReluToLeakyRewriter(Rewriter):
     def __init__(self):
         super().__init__(pattern=SingleNodePattern("PRelu"))
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto], *args, **kwargs):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto], *args, **kwargs):
         node = nodes[0]
         # quick check slope shape
         slope_shape = graph.tensor_shape(node.input[1])

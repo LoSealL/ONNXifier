@@ -16,8 +16,6 @@ limitations under the License.
 
 # pylint: disable=arguments-differ
 
-from typing import List
-
 import numpy as np
 from onnx.helper import make_node
 from onnx.onnx_pb import NodeProto
@@ -36,7 +34,7 @@ class SplitToSliceRewriter(Rewriter):
     def __init__(self):
         super().__init__(SingleNodePattern("Split"))
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto]):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
         node = nodes[0]
         axis = self.get_attribute(node, "axis") or 0
         assert isinstance(axis, int)

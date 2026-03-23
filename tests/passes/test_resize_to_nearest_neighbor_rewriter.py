@@ -51,7 +51,10 @@ def test_rewriter():
     graph = OnnxGraph(_build_test_graph())
     rewriter = PASSES.get("resize_to_nearest_neighbor")
     graph = rewriter(graph)
-    assert "nearest" == rewriter.get_attribute(graph.nodes["resize"]["pb"], "mode")
-    assert "asymmetric" == rewriter.get_attribute(
-        graph.nodes["resize"]["pb"], "coordinate_transformation_mode"
+    assert rewriter.get_attribute(graph.nodes["resize"]["pb"], "mode") == "nearest"
+    assert (
+        rewriter.get_attribute(
+            graph.nodes["resize"]["pb"], "coordinate_transformation_mode"
+        )
+        == "asymmetric"
     )

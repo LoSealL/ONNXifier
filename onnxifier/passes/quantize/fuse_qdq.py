@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import Collection, List
+from collections.abc import Collection
 
 import numpy as np
 import onnx
@@ -101,7 +101,7 @@ class FuseQConvRewriter(Rewriter):
             raise TypeError("QLinearConv only supports int32 bias.")
         return conv.input[2]
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto], *args, **kwargs):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto], *args, **kwargs):
         qinput, qweight, conv, qoutput = self._unpack_nodes(nodes)
         if len(graph.onnx_successors(qinput)) > 1:
             # this means input dequantize fans out to multiple downstream nodes,
@@ -178,7 +178,7 @@ class UnfuseQConvRewriter(Rewriter):
         )
         return qconv.name + "/dq_bias"
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto], *args, **kwargs):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto], *args, **kwargs):
         node = nodes[0]
         x = node.input[0]
         x_scale = node.input[1]
@@ -188,10 +188,7 @@ class UnfuseQConvRewriter(Rewriter):
         w_zero_point = node.input[5]
         y_scale = node.input[6]
         y_zero_point = node.input[7]
-        if len(node.input) == 9:
-            bias = [self._canonical_bias(graph, node)]
-        else:
-            bias = []
+        bias = [self._canonical_bias(graph, node)] if len(node.input) == 9 else []
         dqinput = make_node(
             "DequantizeLinear",
             inputs=[x, x_scale, x_zero_point],
@@ -244,7 +241,7 @@ class UnfuseQMatMulRewriter(Rewriter):
     def __init__(self):
         super().__init__(SingleNodePattern("QLinearMatMul"))
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto], *args, **kwargs):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto], *args, **kwargs):
         node = nodes[0]
         a = node.input[0]
         a_scale = node.input[1]

@@ -15,7 +15,6 @@ limitations under the License.
 """
 
 # pylint: disable=arguments-differ
-from typing import List
 
 from onnx import NodeProto, TensorProto
 from onnx.helper import make_node
@@ -32,7 +31,7 @@ class CastLikeToCastRewriter(Rewriter):
     def __init__(self):
         super().__init__(SingleNodePattern("CastLike"))
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto]):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
         node = nodes[0]
         dtype = graph.tensor_type(node.input[1])
         if dtype == TensorProto.UNDEFINED:

@@ -14,8 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import List
-
 import networkx as nx
 from onnx import NodeProto
 
@@ -40,7 +38,7 @@ class FoldConstantPass(Rewriter):
     def _is_constant_or_qdq(self, node):
         return node.op_type in {"Constant", "DequantizeLinear", "QuantizeLinear"}
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto]):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
         # skip if all nodes are Constant
         if all(self._is_constant_or_qdq(node) for node in nodes):
             return
