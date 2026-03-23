@@ -14,8 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import List
-
 from onnx.onnx_pb import NodeProto
 
 from ... import OnnxGraph
@@ -35,7 +33,7 @@ class MuteMaxPoolIndicesRewriter(Rewriter):
     def __init__(self):
         super().__init__(SingleNodePattern("MaxPool"))
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto]):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
         node = nodes[0]
         if len(node.output) == 1:
             return

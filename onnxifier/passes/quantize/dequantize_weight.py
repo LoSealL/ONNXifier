@@ -14,8 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import List
-
 import numpy as np
 from onnx.helper import make_node
 from onnx.onnx_pb import NodeProto
@@ -41,7 +39,7 @@ class ConvDequantizeWeightRewriter(Rewriter):
         pattern.add_edge(mul, conv)
         super().__init__(pattern=pattern)
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto]):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
         cast, mul, conv = nodes
         weight = self.get_value(cast.input[0])
         if weight is None:
@@ -91,7 +89,7 @@ class GemmDequantizeWeightRewriter(Rewriter):
         )
         super().__init__(pattern=pattern1 | pattern2)
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto]):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
         if len(nodes) == 3:
             cast, mul, gemm = nodes
             transpose = None
@@ -115,10 +113,7 @@ class GemmDequantizeWeightRewriter(Rewriter):
             f"{gemm.name}/zero_point", np.zeros([scale_value.shape[0]], weight.dtype)
         )
         scale = make_constant(f"{gemm.name}/scale", scale_value)
-        if transpose is None:
-            gemm_weight = mul.output[0]
-        else:
-            gemm_weight = transpose.input[0]
+        gemm_weight = mul.output[0] if transpose is None else transpose.input[0]
         dq = make_node(
             "DequantizeLinear",
             inputs=[cast.input[0], scale.output[0], zero_point.output[0]],
@@ -154,7 +149,7 @@ class RecalculateDequantizeWeightRewriter(Rewriter):
         pattern.add_edge(dq, conv)
         super().__init__(pattern=pattern)
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto]):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
         _, conv = nodes
         if op := self.get_input_node(conv, 1):
             if op.op_type == "DequantizeLinear":

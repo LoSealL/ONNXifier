@@ -15,7 +15,6 @@ limitations under the License.
 """
 
 import os
-from typing import Optional
 
 import onnx
 
@@ -34,7 +33,7 @@ _POST_PASSES = [
 
 def openvino_xml_to_onnx_graph(
     model_path: str | os.PathLike | onnx.ModelProto,
-    model_bin: Optional[str | os.PathLike] = None,
+    model_bin: str | os.PathLike | None = None,
 ) -> onnx.ModelProto:
     """Convert OpenVINO IR .xml file to an equivalent ONNX graph.
 

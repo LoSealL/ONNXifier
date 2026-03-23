@@ -22,7 +22,6 @@ import shutil
 from copy import deepcopy
 from os import PathLike
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 from uuid import uuid4
 
 import networkx as nx
@@ -67,18 +66,18 @@ class ExportFunctionsRewriter(Rewriter):
         # With pre-order traversal to match nodes in topological order
         super().__init__(SingleNodePattern().with_domain("*").with_order("pre"))
         self.register_post_hook(self._post_hook)
-        self.function_map: Dict[str, Tuple[int, OnnxGraph]] = {}
+        self.function_map: dict[str, tuple[int, OnnxGraph]] = {}
         self.path = Path(save_dir)
         self.optimize = optimize
         self.recursive = recursive
         self.namespace = namespace.strip("/")  # remove leading slash
-        self._filelist: List[Path] = []
+        self._filelist: list[Path] = []
 
     def update_io_name(
         self,
         node: NodeProto,
         func: FunctionProto,
-        func_nodes: List[NodeProto],
+        func_nodes: list[NodeProto],
     ):
         """Update io names of nodes in function"""
         outside_io = {name for name in itertools.chain(node.input, node.output)}
@@ -119,8 +118,8 @@ class ExportFunctionsRewriter(Rewriter):
     def rewrite(
         self,
         graph: OnnxGraph,
-        nodes: List[NodeProto],
-        path: Optional[str | PathLike] = None,
+        nodes: list[NodeProto],
+        path: str | PathLike | None = None,
     ):
         if path is not None:
             self.path = path
@@ -160,12 +159,15 @@ class ExportFunctionsRewriter(Rewriter):
                     if attr2.ref_attr_name == attr.name:
                         self.set_attribute(n, attr2.name, value)
 
-        self.function_map[model_name] = len(self.function_map), extract_function(
-            graph,
-            func_nodes,
-            # function name has been updated, no mapping needed.
-            [(i, i) for i in node.input],
-            [(i, i) for i in node.output],
+        self.function_map[model_name] = (
+            len(self.function_map),
+            extract_function(
+                graph,
+                func_nodes,
+                # function name has been updated, no mapping needed.
+                [(i, i) for i in node.input],
+                [(i, i) for i in node.output],
+            ),
         )
 
     def _post_hook(self, graph: OnnxGraph):
@@ -203,6 +205,6 @@ class ExportFunctionsRewriter(Rewriter):
         return graph
 
     @property
-    def filelist(self) -> List[Path]:
+    def filelist(self) -> list[Path]:
         """List of extracted function files."""
         return self._filelist

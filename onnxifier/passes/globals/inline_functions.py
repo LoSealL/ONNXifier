@@ -18,7 +18,6 @@ limitations under the License.
 
 import json
 from copy import deepcopy
-from typing import List
 from uuid import uuid4
 
 from onnx.inliner import inline_local_functions
@@ -43,7 +42,7 @@ class InlineFunctionsRewriter(Rewriter):
     def __init__(self):
         super().__init__(SingleNodePattern().with_domain("*"))
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto], force: bool = True):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto], force: bool = True):
         node = nodes[0]
         if node.op_type not in graph.functions:
             raise RuntimeError(f"function {node.op_type} not found in the graph")

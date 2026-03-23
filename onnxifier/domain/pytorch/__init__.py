@@ -26,7 +26,7 @@ except ImportError as e:
 
 
 try:
-    import onnxscript
+    import onnxscript  # noqa: F401
 except ImportError as e:
     raise ImportError("onnxscript is not installed.") from e
 

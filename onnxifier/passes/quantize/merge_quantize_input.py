@@ -15,7 +15,6 @@ limitations under the License.
 """
 
 # pylint: disable=arguments-differ
-from typing import List
 
 from onnx.helper import make_tensor_value_info
 from onnx.onnx_pb import NodeProto
@@ -48,7 +47,7 @@ class MergeQuantizeInputPass(Rewriter):
         pattern.add_edge(qpattern, dqpattern)
         super().__init__(pattern=pattern)
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto]):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
         qlinear, dqlinear = nodes
         if qlinear.input[0] not in graph.inputs:
             # only process the node after graph inputs

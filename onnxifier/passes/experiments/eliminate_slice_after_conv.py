@@ -16,7 +16,6 @@ limitations under the License.
 
 from copy import deepcopy
 from itertools import chain
-from typing import List
 
 import networkx as nx
 from onnx import NodeProto
@@ -146,7 +145,7 @@ class EliminateSliceAfterConvRewriter(Rewriter):
         return node_conv
 
     def copy_relay_nodes(
-        self, conv: NodeProto, nodes: List[NodeProto], graph: OnnxGraph
+        self, conv: NodeProto, nodes: list[NodeProto], graph: OnnxGraph
     ):
         """Duplicate the relay nodes between conv (start) and slice (end) node."""
         # TODO: support sibling nodes.
@@ -178,7 +177,7 @@ class EliminateSliceAfterConvRewriter(Rewriter):
         for _, post_nodes in enumerate(search_results):
             slice_nodes = []
             relay_nodes = []
-            post_nodes: List[NodeProto] = list(post_nodes)
+            post_nodes: list[NodeProto] = list(post_nodes)
             for relay_node in post_nodes:
                 if relay_node.name == conv.name:
                     continue

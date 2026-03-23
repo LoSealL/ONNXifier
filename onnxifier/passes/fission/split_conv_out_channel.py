@@ -14,8 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import List
-
 import numpy as np
 from onnx.helper import make_node
 from onnx.onnx_pb import NodeProto
@@ -128,7 +126,7 @@ class SplitConvOutChannelRewriter(Rewriter):
         self += concat
         self -= node
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto], *args, **kwargs):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto], *args, **kwargs):
         # overwrite default parameters
         self.min_out_channels = kwargs.get("min_out_channels", self.min_out_channels)
         self.target = kwargs.get("target", self.target)

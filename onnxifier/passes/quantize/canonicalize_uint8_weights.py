@@ -15,7 +15,6 @@ limitations under the License.
 """
 
 # pylint: disable=arguments-differ
-from typing import List
 
 import numpy as np
 from onnx import TensorProto
@@ -42,7 +41,7 @@ class CanonicalizeUint8WeightsRewriter(Rewriter):
         pattern.add_edge(SingleNodePattern("DequantizeLinear"), conv)
         super().__init__(pattern=pattern)
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto]):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
         dq_node, conv_node = nodes
         if self.get_input_node_or_die(conv_node, 1) != dq_node:
             # just to match the dequantize of weights, not the activations
@@ -54,10 +53,7 @@ class CanonicalizeUint8WeightsRewriter(Rewriter):
         x = self.get_value_or_die(dq_node.input[0])
         x_scale = self.get_value_or_die(dq_node.input[1])
         x_zp = self.get_value_or_die(dq_node.input[2])
-        if conv_node.op_type == "ConvTranspose":
-            channel_axis = 1
-        else:
-            channel_axis = 0
+        channel_axis = 1 if conv_node.op_type == "ConvTranspose" else 0
         expand_axis = np.arange(x.ndim).tolist()
         expand_axis.pop(channel_axis)
         x_scale = np.expand_dims(x_scale, axis=expand_axis)

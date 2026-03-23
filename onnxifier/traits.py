@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import List, Protocol, Type
+from typing import Protocol
 
 from onnx import NodeProto
 
@@ -28,10 +28,10 @@ class RewriterInterface(Protocol):
     __NAME__: str
     """Specify the name of the rewriter pass. Defaults to class or function name."""
 
-    __DEPS__: List[str | Type[Rewriter]]
+    __DEPS__: list[str | type[Rewriter]]
     """Specify the dependencies of the rewriter pass."""
 
-    __PATCHES__: List[str | Type[Rewriter]]
+    __PATCHES__: list[str | type[Rewriter]]
     """Specify the finalizers of the rewriter pass."""
 
     def __call__(self, graph: OnnxGraph, *args, **kwargs) -> OnnxGraph:
@@ -40,7 +40,7 @@ class RewriterInterface(Protocol):
         """
         return graph
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto], *args, **kwargs):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto], *args, **kwargs):
         """Implement how to rewrite matched nodes in the graph
 
         Args:

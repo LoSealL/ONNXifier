@@ -20,7 +20,7 @@ from collections import OrderedDict, defaultdict
 from collections.abc import Mapping, Sequence, Set
 from functools import partial
 from itertools import chain
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import networkx as nx
 from onnx import NodeProto, ValueInfoProto
@@ -73,18 +73,18 @@ class PassManager:
 
     def __init__(
         self,
-        include: Optional[Sequence[str | RewriterInterface]] = None,
-        exclude: Optional[Sequence[str]] = None,
-        configs: Optional[Dict[str, Any]] = None,
+        include: Sequence[str | RewriterInterface] | None = None,
+        exclude: Sequence[str] | None = None,
+        configs: dict[str, Any] | None = None,
     ) -> None:
-        passes: List[str | RewriterInterface]
+        passes: list[str | RewriterInterface]
         if include is None:
             passes = [i for i in chain(L1, L2, L3)]
         else:
             passes = [i for i in include]
         if exclude:
             passes = list(filter(lambda i: i not in exclude, passes))
-        activated: List[RewriterInterface] = []
+        activated: list[RewriterInterface] = []
         for i in passes:
             if isinstance(i, str):
                 if i in PASSES:
@@ -93,11 +93,11 @@ class PassManager:
                     warning(f"{i} is not registered as a pass, ignore it.")
             else:
                 activated.append(i)
-        self.activated: List[RewriterInterface] = activated
+        self.activated: list[RewriterInterface] = activated
         if configs:
             self._assign_config_to_pass(configs)
 
-    def _assign_config_to_pass(self, configs: Dict[str, Any]):
+    def _assign_config_to_pass(self, configs: dict[str, Any]):
         for key, config in configs.items():
             index = -1
             if ":" in key:
@@ -106,7 +106,7 @@ class PassManager:
             if not isinstance(config, Mapping):
                 warning(f"config {key}:{index} must be a dict, but got {type(config)}")
                 continue
-            candidates = [i for i in self.activated if i.__NAME__ == key]
+            candidates = [i for i in self.activated if key == i.__NAME__]
             if index >= 0 and index >= len(candidates):
                 warning(
                     f"config {key}:{index} exceeds the boundary. "
@@ -162,7 +162,7 @@ class PassManager:
         graph: OnnxGraph,
         strict: bool = False,
         recursive: bool = False,
-        specify_node_names: Optional[Set[str]] = None,
+        specify_node_names: Set[str] | None = None,
     ) -> OnnxGraph:
         """Invoke passes on the input graph.
 
@@ -201,10 +201,10 @@ class PassManager:
         return graphs[""][1]
 
     def _make_subgraph_from_functions(self, graph: OnnxGraph):
-        users: Dict[str, List[NodeProto]] = defaultdict(list)
-        iter_order: Dict[str, OnnxGraph] = {}  # ordered hashset
+        users: dict[str, list[NodeProto]] = defaultdict(list)
+        iter_order: dict[str, OnnxGraph] = {}  # ordered hashset
         # graph.functions may not topologically sorted
-        bfs: Dict[str, None] = OrderedDict()  # used as ordered set
+        bfs: dict[str, None] = OrderedDict()  # used as ordered set
         for n in graph:
             node: NodeProto = graph.nodes[n]["pb"]
             if node.op_type in graph.functions:
@@ -225,7 +225,7 @@ class PassManager:
                         [(i, j) for i, j in zip(users[f.name][0].input, f.input)],
                         [(i, j) for i, j in zip(users[f.name][0].output, f.output)],
                     )
-        extended_value_info: List[ValueInfoProto] = []
+        extended_value_info: list[ValueInfoProto] = []
         for name, parent in iter_order.items():
             if len(users[name]) != 1:
                 # Currently only function for a single node is OK to optimize
@@ -282,7 +282,7 @@ class PassManager:
         print(L3, flush=True)
 
     @classmethod
-    def print(cls, names: str | List[str]):
+    def print(cls, names: str | list[str]):
         """Print a specific pass or a set of passes."""
         print(PASSES.child(names), flush=True)
 

@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 # pylint: disable=arguments-differ
-from typing import List, Literal, Optional
+from typing import Literal
 
 from onnx.helper import make_node
 from onnx.onnx_pb import NodeProto
@@ -53,9 +53,9 @@ class SplitSDPARewriter(Rewriter):
     def rewrite(
         self,
         graph: OnnxGraph,
-        nodes: List[NodeProto],
+        nodes: list[NodeProto],
         blocks: int = 64,
-        mode: Optional[Literal["split_by_hidden_dims", "split_by_heads"]] = None,
+        mode: Literal["split_by_hidden_dims", "split_by_heads"] | None = None,
     ):
         if mode == "split_by_hidden_dims":
             self.split_by_hidden_dims(graph, nodes, blocks)
@@ -65,7 +65,7 @@ class SplitSDPARewriter(Rewriter):
             self.split_by_heads(graph, nodes, 1)
 
     def split_by_hidden_dims(
-        self, graph: OnnxGraph, nodes: List[NodeProto], blocks: int = 64
+        self, graph: OnnxGraph, nodes: list[NodeProto], blocks: int = 64
     ):
         mm0, act, mm1 = nodes
         # query = self.get_input_node_or_die(mm0, 0)
@@ -133,7 +133,7 @@ class SplitSDPARewriter(Rewriter):
         self -= [mm0, mm1, act]
 
     def split_by_heads(
-        self, graph: OnnxGraph, nodes: List[NodeProto], blocks: int = 64
+        self, graph: OnnxGraph, nodes: list[NodeProto], blocks: int = 64
     ):
         mm0, act, mm1 = nodes
         query = self.get_input_node_or_die(mm0, 0)

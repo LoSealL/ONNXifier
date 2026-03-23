@@ -14,8 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import List
-
 import numpy as np
 from onnx import NodeProto, numpy_helper
 from onnx.helper import make_node
@@ -44,7 +42,7 @@ class ConstantToConstantOfShapeRewriter(Rewriter):
         super().__init__(pattern=SingleNodePattern("Constant"))
         self.threshold = threshold
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto]):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
         node = nodes[0]
 
         # Get the constant value

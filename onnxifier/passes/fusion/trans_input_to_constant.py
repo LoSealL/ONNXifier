@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import Optional, Sequence
+from collections.abc import Sequence
 
 import numpy as np
 from onnx.helper import tensor_dtype_to_np_dtype
@@ -28,7 +28,7 @@ from ..utils import make_constant
 def trans_input_to_constant(
     graph: OnnxGraph,
     input_name: str | Sequence[str],
-    value: Optional[np.ndarray | Sequence[np.ndarray]] = None,
+    value: np.ndarray | Sequence[np.ndarray] | None = None,
 ):
     """Consolidate a input to a fixed value as a constant node.
 

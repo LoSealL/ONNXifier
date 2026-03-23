@@ -90,7 +90,7 @@ def _numpy_impl(
         spatial_shape.append(
             np.ceil((ch + p[0] + p[1] - (d * (b - 1))) / s).astype(np.int64)
         )
-    assert L == np.prod(spatial_shape)
+    assert np.prod(spatial_shape) == L
 
     # canvas based filling
     y = np.zeros([B, C // blocks, *image_shape], dtype=x.dtype)
@@ -211,9 +211,9 @@ def test_col2im_numpy_impl(test_params):
     # Validate output shape and numerical accuracy
     assert y_ref.shape == output_shape
     # Temporarily relax tolerance for debugging
-    assert np.allclose(
-        y, y_ref, atol=1e-5
-    ), f"Numerical mismatch: max diff {np.max(np.abs(y - y_ref)):.6f}"
+    assert np.allclose(y, y_ref, atol=1e-5), (
+        f"Numerical mismatch: max diff {np.max(np.abs(y - y_ref)):.6f}"
+    )
 
 
 def test_downgrade_col2im_op18(test_params):

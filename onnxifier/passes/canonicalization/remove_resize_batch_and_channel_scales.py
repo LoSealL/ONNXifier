@@ -14,8 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import List
-
 import numpy as np
 from onnx.onnx_pb import NodeProto
 
@@ -37,7 +35,7 @@ class RemoveResizeBatchAndChannelRewriter(Rewriter):
     def __init__(self):
         super().__init__(SingleNodePattern("Resize"))
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto], *args, **kwargs):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto], *args, **kwargs):
         if graph.opset_version < 18:
             return  # axes attribute is added since opset 18
         node = nodes[0]

@@ -16,8 +16,6 @@ limitations under the License.
 
 # pylint: disable=arguments-differ
 
-from typing import List
-
 import numpy as np
 from onnx.helper import make_node
 from onnx.onnx_pb import NodeProto
@@ -39,7 +37,7 @@ class ChangeResizeBatch(Rewriter):
     def __init__(self):
         super().__init__(pattern=SingleNodePattern("Resize"))
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto]):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
         resize = nodes[0]
         i_shape = graph.tensor_shape(resize.input[0])
         o_shape = graph.tensor_shape(resize.output[0])

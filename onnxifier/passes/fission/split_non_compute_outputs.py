@@ -16,7 +16,6 @@ limitations under the License.
 
 from itertools import chain
 from pathlib import Path
-from typing import List
 
 import onnx
 
@@ -60,12 +59,12 @@ class SplitNonComputeOutputsRewriter(Rewriter):
         # all downstream nodes have been removed
         return all(i in nodes_removed for i in graph.onnx_successors(node))
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[onnx.NodeProto], *args, **kwargs):
+    def rewrite(self, graph: OnnxGraph, nodes: list[onnx.NodeProto], *args, **kwargs):
         node = nodes[0]
         if node.op_type in self._compute_op:
             logger.debug(f"Skip node {node.name} since it's {node.op_type}")
             return
-        nodes_to_remove: List[onnx.NodeProto] = []
+        nodes_to_remove: list[onnx.NodeProto] = []
         nodes_to_visit = [node]
         while nodes_to_visit:
             node_to_remove = nodes_to_visit.pop(0)

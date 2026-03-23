@@ -15,7 +15,6 @@ limitations under the License.
 """
 
 # pylint: disable=arguments-differ
-from typing import Dict, List, Optional
 
 from onnx import NodeProto, shape_inference
 from onnx.tools.update_model_dims import update_inputs_outputs_dims
@@ -38,7 +37,7 @@ class InferSplitToSequence(Rewriter):
     def __init__(self):
         super().__init__(pattern=SingleNodePattern("SplitToSequence"))
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto]):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
         node = nodes[0]
         input_shape = graph.static_tensor_shape(node.input[0])
         axis = self.get_attribute(node, "axis", 0)
@@ -76,7 +75,7 @@ class InferGroupNormalization(Rewriter):
     def __init__(self):
         super().__init__(SingleNodePattern("GroupNormalization"))
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto]):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
         node = nodes[0]
         input_shape, dtype = graph.tensor_info(node.input[0])
         output_shape, _ = graph.tensor_info(node.output[0])
@@ -88,8 +87,8 @@ class InferGroupNormalization(Rewriter):
 @PASSES.register()
 def infer_shape(
     graph: OnnxGraph,
-    input_shapes: Optional[Dict[str, List[int | str]]] = None,
-    output_shapes: Optional[Dict[str, List[int | str]]] = None,
+    input_shapes: dict[str, list[int | str]] | None = None,
+    output_shapes: dict[str, list[int | str]] | None = None,
 ) -> OnnxGraph:
     """Regenerate tensor info of graph."""
     model = graph.model

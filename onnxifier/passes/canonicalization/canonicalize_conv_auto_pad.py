@@ -14,8 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import List
-
 from onnx.onnx_pb import NodeProto
 
 from ... import OnnxGraph
@@ -36,7 +34,7 @@ class CanonicalizeConvAutoPadRewriter(Rewriter):
             SingleNodePattern("Conv").with_attr("auto_pad").with_attr("pads")
         )
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto], *args, **kwargs):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto], *args, **kwargs):
         node = nodes[0]
         auto_pad = self.get_attribute(node, "auto_pad")
         if auto_pad != "NOTSET":

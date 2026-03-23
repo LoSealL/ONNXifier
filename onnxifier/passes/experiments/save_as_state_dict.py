@@ -16,8 +16,8 @@ limitations under the License.
 
 # pylint: disable=arguments-differ
 
+from collections.abc import Sequence
 from pathlib import Path
-from typing import List, Sequence
 
 import numpy as np
 from onnx.onnx_pb import NodeProto
@@ -54,7 +54,7 @@ class SaveAsStateDictRewriter(Rewriter):
         super().__init__(pattern=pattern)
         self.register_post_hook(self.save_states)
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto]):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
         node = nodes[0]
         name = node.name.strip("/").replace("/", ".")
         if node.op_type in ("Conv", "ConvTranspose"):

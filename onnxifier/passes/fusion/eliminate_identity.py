@@ -16,8 +16,6 @@ limitations under the License.
 
 # pylint: disable=arguments-differ
 
-from typing import List
-
 from onnx.onnx_pb import NodeProto
 
 from ... import OnnxGraph
@@ -33,7 +31,7 @@ class EliminateIdentityRewriter(Rewriter):
     def __init__(self):
         super().__init__(pattern=SingleNodePattern("Identity"))
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto]):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
         identity_node = nodes[0]
         if graph.nodes[identity_node.name]["has_output"]:
             prev_node = graph.onnx_predecessors(identity_node)[0]

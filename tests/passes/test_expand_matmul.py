@@ -81,9 +81,9 @@ def test_expand_matmul_basic():
     y2 = y2_result[0] if isinstance(y2_result, list) else list(y2_result.values())[0]
 
     # Results should be identical
-    assert np.allclose(
-        y1, y2, rtol=1e-5, atol=1e-6
-    ), f"Basic MatMul expansion failed. Max diff: {np.max(np.abs(y1 - y2))}"
+    assert np.allclose(y1, y2, rtol=1e-5, atol=1e-6), (
+        f"Basic MatMul expansion failed. Max diff: {np.max(np.abs(y1 - y2))}"
+    )
 
 
 def test_expand_matmul_batch():
@@ -110,9 +110,9 @@ def test_expand_matmul_batch():
     y2 = y2_result[0] if isinstance(y2_result, list) else list(y2_result.values())[0]
 
     # Results should be identical
-    assert np.allclose(
-        y1, y2, rtol=1e-5, atol=1e-6
-    ), f"Batch MatMul expansion failed. Max diff: {np.max(np.abs(y1 - y2))}"
+    assert np.allclose(y1, y2, rtol=1e-5, atol=1e-6), (
+        f"Batch MatMul expansion failed. Max diff: {np.max(np.abs(y1 - y2))}"
+    )
 
 
 def test_expand_matmul_no_expansion_needed():
@@ -141,9 +141,9 @@ def test_expand_matmul_no_expansion_needed():
     optimized_graph = pm.optimize(original_graph, strict=True)
 
     # Graph should remain unchanged (same number of nodes)
-    assert len(optimized_graph.nodes) == len(
-        original_graph.nodes
-    ), "Graph was modified when no expansion was needed"
+    assert len(optimized_graph.nodes) == len(original_graph.nodes), (
+        "Graph was modified when no expansion was needed"
+    )
 
 
 def test_expand_matmul_numerical_accuracy():
@@ -203,9 +203,9 @@ def test_expand_matmul_numerical_accuracy():
         max_diff = np.max(np.abs(y1 - y2))
         mean_diff = np.mean(np.abs(y1 - y2))
 
-        assert np.allclose(
-            y1, y2, rtol=1e-5, atol=1e-6
-        ), f"{description} failed. Max diff: {max_diff}, Mean diff: {mean_diff}"
+        assert np.allclose(y1, y2, rtol=1e-5, atol=1e-6), (
+            f"{description} failed. Max diff: {max_diff}, Mean diff: {mean_diff}"
+        )
 
 
 def test_expand_matmul_factor_2():
@@ -244,25 +244,22 @@ def test_expand_matmul_factor_2():
     # Run optimized model
     runner2 = ReferenceEvaluator(optimized_graph.model)
     y2_result = runner2.run(None, {"x": x})
-    if isinstance(y2_result, list):
-        y2 = y2_result[0]
-    else:
-        y2 = list(y2_result.values())[0]
+    y2 = y2_result[0] if isinstance(y2_result, list) else list(y2_result.values())[0]
 
     # Check numerical accuracy
     max_diff = np.max(np.abs(y1 - y2))
     mean_diff = np.mean(np.abs(y1 - y2))
 
-    assert np.allclose(
-        y1, y2, rtol=1e-5, atol=1e-6
-    ), f"Factor=2 test failed. Max diff: {max_diff}, Mean diff: {mean_diff}"
+    assert np.allclose(y1, y2, rtol=1e-5, atol=1e-6), (
+        f"Factor=2 test failed. Max diff: {max_diff}, Mean diff: {mean_diff}"
+    )
 
     # Verify that expansion actually happened by checking node count
     original_node_count = len(model.graph.node)
     optimized_node_count = len(optimized_graph.model.graph.node)
-    assert (
-        optimized_node_count > original_node_count
-    ), "Expected more nodes after expansion (Pad, expanded MatMul, Slice)"
+    assert optimized_node_count > original_node_count, (
+        "Expected more nodes after expansion (Pad, expanded MatMul, Slice)"
+    )
 
 
 if __name__ == "__main__":

@@ -15,7 +15,6 @@ limitations under the License.
 """
 
 # pylint: disable=arguments-differ
-from typing import List
 
 import networkx as nx
 import numpy as np
@@ -48,7 +47,7 @@ class QuickSparseRewriter(Rewriter):
     def rewrite(
         self,
         graph: OnnxGraph,
-        nodes: List[NodeProto],
+        nodes: list[NodeProto],
         structured: bool = False,
         ratio: float = 0.5,
     ):

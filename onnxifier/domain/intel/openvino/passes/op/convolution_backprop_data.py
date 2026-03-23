@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 import itertools
-from typing import Any, Dict
+from typing import Any
 
 from onnx.helper import make_node
 from onnx.onnx_pb import NodeProto
@@ -64,7 +64,7 @@ class ConvolutionBackpropData(BaseNodeConversion):
         assert isinstance(output_padding, str) or output_padding is None
         output_padding = text_to_integers(output_padding)
 
-        attrs: Dict[str, Any] = dict(
+        attrs: dict[str, Any] = dict(
             dilations=dilations,
             group=1,
             output_padding=output_padding,
@@ -117,7 +117,7 @@ class GroupConvolutionBackpropData(BaseNodeConversion):
         assert isinstance(output_padding, str) or output_padding is None
         output_padding = text_to_integers(output_padding)
 
-        attrs: Dict[str, Any] = dict(
+        attrs: dict[str, Any] = dict(
             dilations=dilations,
             output_padding=output_padding,
             strides=strides,

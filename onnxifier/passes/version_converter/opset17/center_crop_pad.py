@@ -14,8 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import List
-
 import numpy as np
 from onnx.helper import make_node
 from onnx.onnx_pb import NodeProto
@@ -34,7 +32,7 @@ class CenterCropPad(Rewriter):
     def __init__(self):
         super().__init__(SingleNodePattern("CenterCropPad"))
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto], *args, **kwargs):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto], *args, **kwargs):
         node = nodes[0]
         axes = self.get_attribute(node, "axes")
         shape = self.get_value(node.input[1])

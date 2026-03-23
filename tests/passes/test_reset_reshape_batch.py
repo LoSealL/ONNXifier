@@ -146,7 +146,7 @@ def test_reset_reshape_batch():
     graph = pm.optimize(graph, strict=True)
 
     reshape = graph.onnx_predecessors(graph.nodes["br"]["pb"])[-1].attribute[0].t
-    assert -1 == numpy_helper.to_array(reshape)[0]
+    assert numpy_helper.to_array(reshape)[0] == -1
 
 
 def test_reset_reshape_batch_to_last_dim():
@@ -155,7 +155,7 @@ def test_reset_reshape_batch_to_last_dim():
     graph = pm.optimize(graph, strict=True)
 
     reshape = graph.onnx_predecessors(graph.nodes["br"]["pb"])[-1].attribute[0].t
-    assert -1 == numpy_helper.to_array(reshape)[-1]
+    assert numpy_helper.to_array(reshape)[-1] == -1
 
 
 def test_reset_reshape_batch_merged_dim():
@@ -164,7 +164,7 @@ def test_reset_reshape_batch_merged_dim():
     graph = pm.optimize(graph, strict=True)
 
     reshape = graph.onnx_predecessors(graph.nodes["br"]["pb"])[-1].attribute[0].t
-    assert -1 == numpy_helper.to_array(reshape)[-1]
+    assert numpy_helper.to_array(reshape)[-1] == -1
 
 
 def test_reset_reshape_batch_bad_graph():

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import List, cast
+from typing import cast
 
 import numpy as np
 from onnx import NodeProto
@@ -45,7 +45,7 @@ class AvgPoolToConvRewriter(Rewriter):
     def __init__(self):
         super().__init__(SingleNodePattern("AveragePool"))
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto]):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
         node = nodes[0]
 
         # Extract attributes
@@ -61,33 +61,27 @@ class AvgPoolToConvRewriter(Rewriter):
 
         strides_attr = self.get_attribute(node, "strides", None)
         if isinstance(strides_attr, list) and len(strides_attr) == spatial_rank:
-            validated_strides: List[int] = []
+            validated_strides: list[int] = []
             for s in strides_attr:
                 if isinstance(s, (int, np.integer)):
                     validated_strides.append(int(cast(int, s)))
                 else:
                     validated_strides = []
                     break
-            if validated_strides:
-                strides = validated_strides
-            else:
-                strides = [1] * spatial_rank
+            strides = validated_strides or [1] * spatial_rank
         else:
             strides = [1] * spatial_rank
 
         pads_attr = self.get_attribute(node, "pads", None)
         if isinstance(pads_attr, list) and len(pads_attr) == 2 * spatial_rank:
-            validated_pads: List[int] = []
+            validated_pads: list[int] = []
             for p in pads_attr:
                 if isinstance(p, (int, np.integer)):
                     validated_pads.append(int(cast(int, p)))
                 else:
                     validated_pads = []
                     break
-            if validated_pads:
-                pads = validated_pads
-            else:
-                pads = [0] * (2 * spatial_rank)
+            pads = validated_pads or [0] * (2 * spatial_rank)
         else:
             pads = [0] * (2 * spatial_rank)
 

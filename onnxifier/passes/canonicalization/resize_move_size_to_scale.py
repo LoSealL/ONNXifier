@@ -16,7 +16,7 @@ limitations under the License.
 
 # pylint: disable=arguments-differ
 
-from typing import List, Sequence
+from collections.abc import Sequence
 
 import numpy as np
 from onnx.onnx_pb import NodeProto
@@ -38,7 +38,7 @@ class ResizeMoveSizeToScaleRewriter(Rewriter):
     def __init__(self):
         super().__init__(SingleNodePattern("Resize"))
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto]):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
         node_pb = nodes[0]
         node = node_pb.name
         input_nodes = self.get_input_nodes(node_pb)

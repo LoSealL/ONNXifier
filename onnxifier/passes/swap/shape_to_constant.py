@@ -16,8 +16,6 @@ limitations under the License.
 
 # pylint: disable=arguments-differ
 
-from typing import List
-
 import numpy as np
 from onnx.onnx_pb import NodeProto
 
@@ -35,7 +33,7 @@ class ShapeToConstantPass(Rewriter):
     def __init__(self):
         super().__init__(pattern=SingleNodePattern("Shape"))
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto]):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
         node = nodes[0]
         try:
             shape = graph.static_tensor_shape(node.input[0])

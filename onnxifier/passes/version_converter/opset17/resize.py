@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import List, Literal, Optional
+from typing import Literal
 
 import numpy as np
 from onnx.onnx_pb import NodeProto
@@ -38,7 +38,7 @@ class Resize(Rewriter):
     def __init__(self):
         super().__init__(SingleNodePattern("Resize"))
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto], *args, **kwargs):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto], *args, **kwargs):
         node = nodes[0]
         mode = self.get_attribute(node, "mode")
         antialias = self.get_attribute(node, "antialias")
@@ -72,7 +72,7 @@ class Resize(Rewriter):
                 # scales value.
                 self._rescale(
                     node,
-                    keep_aspect_ratio_policy,
+                    keep_aspect_ratio_policy,  # type: ignore
                     axes,
                     scales,
                 )
@@ -83,17 +83,14 @@ class Resize(Rewriter):
         self,
         node: NodeProto,
         policy: Literal["not_larger", "not_smaller"],
-        axes: Optional[List[int]],
+        axes: list[int] | None,
         scales: np.ndarray,
     ):
         if axes is None:
             axes = list(range(len(scales)))
         axes = sorted(axes)
         scales = scales[axes]
-        if policy == "not_larger":
-            scales = scales.min()
-        else:
-            scales = scales.max()
+        scales = scales.min() if policy == "not_larger" else scales.max()
         scales = np.tile(scales, [len(axes)])
         # append 1.0 for missing axes
         input_shape = self.graph.tensor_shape(node.input[0])

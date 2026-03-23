@@ -18,7 +18,6 @@ Extract onnx functions to individual onnx files.
 
 import argparse
 from pathlib import Path
-from typing import List
 
 import onnx
 from onnx.helper import make_graph, make_model, make_tensor_value_info
@@ -44,7 +43,7 @@ def main():
     output_dir.mkdir(exist_ok=True, parents=True)
     for name, func in onnx_graph.functions.items():
         # find nodes use the function
-        func_nodes: List[onnx.NodeProto] = []
+        func_nodes: list[onnx.NodeProto] = []
         for _, node in onnx_graph.nodes.items():
             node_pb: onnx.NodeProto = node["pb"]
             if node_pb.op_type == name and node_pb.domain == func.domain:
@@ -78,10 +77,7 @@ def main():
         has_functions = any(
             node.domain and "onnx" not in node.domain for node in func.node
         )  # domain != "" or "ai.onnx"
-        if has_functions:
-            functions = onnx_graph.functions.values()
-        else:
-            functions = []
+        functions = onnx_graph.functions.values() if has_functions else []
         model = make_model(
             graph,
             model_version=onnx_graph.model_version,

@@ -17,7 +17,7 @@ Remove conv weights with all zero channels
 """
 
 from itertools import chain
-from typing import Dict, List, Protocol, Set, Type
+from typing import Protocol
 
 import networkx as nx
 import numpy as np
@@ -58,39 +58,39 @@ class PrunedData:
         # E.g:
         # Y = Conv(X, W), Y[:, ind] == 0
         # out_zero_indices[Y] = {ind}
-        self.fw_zero_indices: Dict[NodeProto, Set[int]] = {}
+        self.fw_zero_indices: dict[NodeProto, set[int]] = {}
         # mapping node's predecessor to this node's input channel indices of zero values
         # E.g:
         # Y = Conv(X, W), X[:, ind] == 0
         # in_zero_indices[X] = {ind}
         # Note: input channels will be merged if two nodes share the same input
-        self.bw_zero_indices: Dict[NodeProto, Set[int]] = {}
-        self.bw_stopper: Dict[NodeProto, bool] = {}
-        self.axes_map: Dict[NodeProto, Set[int]] = {}
-        self.seen_nodes: Set[str] = set()
+        self.bw_zero_indices: dict[NodeProto, set[int]] = {}
+        self.bw_stopper: dict[NodeProto, bool] = {}
+        self.axes_map: dict[NodeProto, set[int]] = {}
+        self.seen_nodes: set[str] = set()
 
 
 class IPruneForwardFunc(Protocol):
     """Interface for forward pruning functions."""
 
-    __DEPS__: List[str | Type[Rewriter]]
-    __PATCHES__: List[str | Type[Rewriter]]
+    __DEPS__: list[str | type[Rewriter]]
+    __PATCHES__: list[str | type[Rewriter]]
 
     def __call__(
         self, rewriter: Rewriter, node: NodeProto, pruned: PrunedData
-    ) -> Set[int]:
+    ) -> set[int]:
         return set()
 
 
 class IPruneBackwardFunc(Protocol):
     """Interface for backward pruning functions."""
 
-    __DEPS__: List[str | Type[Rewriter]]
-    __PATCHES__: List[str | Type[Rewriter]]
+    __DEPS__: list[str | type[Rewriter]]
+    __PATCHES__: list[str | type[Rewriter]]
 
     def __call__(
         self, rewriter: Rewriter, node: NodeProto, pruned: PrunedData
-    ) -> List[Set[int]]:
+    ) -> list[set[int]]:
         return []
 
 
@@ -140,7 +140,7 @@ def _get_weights(rewriter: Rewriter, node: NodeProto) -> np.ndarray:
     return weights
 
 
-def _get_zero_indices(value: np.ndarray, axis: int = 0) -> Set[int]:
+def _get_zero_indices(value: np.ndarray, axis: int = 0) -> set[int]:
     zero_indices = set()
     for i, val in enumerate(np.split(value, value.shape[axis], axis=axis)):
         if np.all(val == 0):
@@ -153,7 +153,7 @@ def get_conv_zero_out_channels(
     self: Rewriter,
     node: NodeProto,
     pruned: PrunedData,  # pylint: disable=unused-argument
-) -> Set[int]:
+) -> set[int]:
     """Get zeroed output channels of a Conv operator.
 
     A zeroed output channel ``i`` is a channel that all weights of ``W[i][:]``
@@ -186,7 +186,7 @@ def get_convtranspose_zero_out_channels(
     self: Rewriter,
     node: NodeProto,
     pruned: PrunedData,  # pylint: disable=unused-argument
-) -> Set[int]:
+) -> set[int]:
     """Get zeroed output channels of a ConvTranspose operator.
 
     A zeroed output channel ``i`` is a channel that all weights of ``W[:][i]``
@@ -219,7 +219,7 @@ def get_constant_zero_out_channels(
     self: Rewriter,
     node: NodeProto,
     pruned: PrunedData,  # pylint: disable=unused-argument
-) -> Set[int]:
+) -> set[int]:
     """Get zeroed output channels of a constant operator.
 
     A zeroed output channel ``i`` is a channel that all values are zeros.
@@ -241,7 +241,7 @@ def get_constant_zero_out_channels(
 # not ready
 def get_add_zero_out_channels(
     self: Rewriter, node: NodeProto, pruned: PrunedData
-) -> Set[int]:
+) -> set[int]:
     """Get zeroed output channels of an Add or Sub operator.
 
     A zeroed output channel ``i`` is a channel that all values from both
@@ -288,7 +288,7 @@ def get_add_zero_out_channels(
 @FW_PRUNE.register("Concat")
 def get_concat_zero_out_channels(
     self: Rewriter, node: NodeProto, pruned: PrunedData
-) -> Set[int]:
+) -> set[int]:
     """Get zeroed output channels of a Concat operator.
 
     A zeroed output channel ``i`` is a channel that corresponding values from one
@@ -326,7 +326,7 @@ def get_conv_zero_in_channels(
     self: Rewriter,
     node: NodeProto,
     pruned: PrunedData,  # pylint: disable=unused-argument
-) -> List[Set[int]]:
+) -> list[set[int]]:
     """Get zeroed input channels of a Conv operator.
 
     A zeroed input channel ``i`` is a channel that all weights of ``W[:,i]`` are
@@ -352,7 +352,7 @@ def get_convtranspose_zero_in_channels(
     self: Rewriter,
     node: NodeProto,
     pruned: PrunedData,  # pylint: disable=unused-argument
-) -> List[Set[int]]:
+) -> list[set[int]]:
     """Get zeroed input channels of a ConvTranspose operator.
 
     A zeroed input channel ``i`` is a channel that all weights of ``W[i,:]`` are
@@ -376,7 +376,7 @@ def get_convtranspose_zero_in_channels(
 @BW_PRUNE.register("Concat")
 def get_concat_zero_in_channels(
     self: Rewriter, node: NodeProto, pruned: PrunedData
-) -> List[Set[int]]:
+) -> list[set[int]]:
     """Get zeroed input channels of a Concat operator.
 
     A zeroed input channel ``i`` is a channel that corresponding values from
@@ -401,7 +401,7 @@ def get_concat_zero_in_channels(
 # not ready
 def get_add_zero_in_channels(
     self: Rewriter, node: NodeProto, pruned: PrunedData
-) -> List[Set[int]]:
+) -> list[set[int]]:
     """Get zeroed input channels of an Add or Sub operator.
 
     A zeroed input channel ``i`` is a channel that corresponding values from both
@@ -416,7 +416,7 @@ def get_add_zero_in_channels(
     ch_axis = 1
     shape0 = self.graph.tensor_shape(node.input[0])
     shape1 = self.graph.tensor_shape(node.input[1])
-    zero_indices: List[Set[int]] = [set(), set()]
+    zero_indices: list[set[int]] = [set(), set()]
     if len(shape0) > ch_axis and (ch := shape0[ch_axis]):
         if isinstance(ch, int) and ch > 1:
             zero_indices[0] = axes_out
@@ -432,7 +432,7 @@ def get_conv_mixture(
     self: Rewriter,  # pylint: disable=unused-argument
     node: NodeProto,
     pruned: PrunedData,
-) -> Set[int]:
+) -> set[int]:
     """Get the mix result of zero channel indices consider both forward and backward
     paths.
     """
@@ -447,7 +447,7 @@ class RemoveZeroChannelsRewriter(Rewriter):
     """Prune zerod channels in constant weights of Conv and ConvTranspose operators."""
 
     # global temp memory to propagate pruned axes through entire graph
-    _memo: Dict[int, PrunedData] = {}
+    _memo: dict[int, PrunedData] = {}
 
     def __init__(self):
         pattern = sum([SingleNodePattern(op) for op in _CHAN_MIXER])
@@ -469,7 +469,7 @@ class RemoveZeroChannelsRewriter(Rewriter):
             nodes_found.update(nodes + endpoints)
         return tuple(nodes_found)
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto], *args, **kwargs):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto], *args, **kwargs):
         if id(graph) not in self._memo:
             self._memo[id(graph)] = PrunedData()
         memo = self._memo[id(graph)]
@@ -485,13 +485,13 @@ class RemoveZeroChannelsRewriter(Rewriter):
             f"Boundary around {nodes[0].name}: {[op.name for op in boundary_nodes]}"
         )
         h = graph.onnx_subgraph(boundary_nodes)
-        start_points: List[NodeProto] = []
+        start_points: list[NodeProto] = []
         for node_name, ind in h.in_degree():  # type: ignore
             if ind == 0 and h.nodes[node_name]["pb"].op_type in _CHAN_MIXER:
                 start_points.append(h.nodes[node_name]["pb"])
         logger.debug(f"Start points: {[op.name for op in start_points]}")
 
-        end_points: List[NodeProto] = []
+        end_points: list[NodeProto] = []
         for node_name, outd in h.out_degree():  # type: ignore
             if outd == 0 and h.nodes[node_name]["pb"].op_type in _CHAN_MIXER:
                 end_points.append(h.nodes[node_name]["pb"])
@@ -578,7 +578,7 @@ class RemoveZeroChannelsRewriter(Rewriter):
             logger.debug(f"axes map of {node.name} is empty")
             return
         if producer is None:
-            in_axes: Set[int] | None = set()
+            in_axes: set[int] | None = set()
         else:
             in_axes = memo.axes_map.get(producer)
         if in_axes is None:

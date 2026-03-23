@@ -14,8 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import List
-
 import numpy as np
 from onnx.helper import make_node, tensor_dtype_to_np_dtype
 from onnx.onnx_pb import NodeProto
@@ -43,7 +41,7 @@ class Gelu(Rewriter):
     def __init__(self):
         super().__init__(SingleNodePattern("Gelu"))
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto], *args, **kwargs):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto], *args, **kwargs):
         node = nodes[0]
         appr = self.get_attribute(node, "approximate")
         if appr == "tanh":

@@ -17,7 +17,6 @@ limitations under the License.
 # pylint: disable=arguments-differ
 
 import math
-from typing import List
 
 import numpy as np
 from onnx.helper import make_node
@@ -37,7 +36,7 @@ class GEMMToConvRewrite(Rewriter):
     def __init__(self):
         super().__init__(SingleNodePattern("Gemm") | SingleNodePattern("MatMul"))
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto]):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
         gemm_node = nodes[0]
         self._convert_fc_to_conv(graph, gemm_node)
         self._convert_NDim_matmul_to_conv(graph, gemm_node)

@@ -16,8 +16,6 @@ limitations under the License.
 
 # pylint: disable=arguments-differ
 
-from typing import List
-
 import numpy as np
 from onnx.helper import make_tensor_type_proto, make_value_info
 
@@ -37,7 +35,7 @@ class ExpandConvChannelRewriter(Rewriter):
     def __init__(self):
         super().__init__(pattern=SingleNodePattern("Conv"))
 
-    def rewrite(self, graph: OnnxGraph, nodes: List):
+    def rewrite(self, graph: OnnxGraph, nodes: list):
         conv_node = nodes[0]
         n, ic, h, w = graph.tensor_shape(conv_node.input[0])
         if ic != 3:

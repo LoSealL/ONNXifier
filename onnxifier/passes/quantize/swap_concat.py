@@ -14,8 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import List
-
 from onnx.helper import make_node
 from onnx.onnx_pb import NodeProto
 
@@ -39,7 +37,7 @@ class SwapConcat(Rewriter):
         pattern.add_edge(dq2, concat)
         super().__init__(pattern)
 
-    def make_concat(self, input_name_list: List[str], name: str, axis: int = 0):
+    def make_concat(self, input_name_list: list[str], name: str, axis: int = 0):
         """concat two input"""
         concat = make_node(
             op_type="Concat",
@@ -50,7 +48,7 @@ class SwapConcat(Rewriter):
         )
         return concat
 
-    def assign_nodes(self, nodes: List[NodeProto]):
+    def assign_nodes(self, nodes: list[NodeProto]):
         """Assign nodes by op_type, we find the order is not topo"""
         dq1, dq2, concat = None, None, None
 
@@ -76,7 +74,7 @@ class SwapConcat(Rewriter):
 
         return dq1, dq2, concat
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto]):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
         if len(nodes) != 3:
             return
         dq1, dq2, concat = self.assign_nodes(nodes)

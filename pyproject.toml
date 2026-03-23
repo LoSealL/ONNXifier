@@ -60,10 +60,7 @@ test = [
     "pytest-cov",
     "torch",
 ]
-fuzzy = [
-    "tensorflow-cpu>=2.20.0",
-    "pyyaml",
-]
+fuzzy = ["tensorflow-cpu>=2.20.0", "pyyaml"]
 
 [project.scripts]
 onnxify = "onnxifier.__main__:main"
@@ -124,3 +121,10 @@ torchvision = { index = "pytorch" }
 name = "pytorch"
 url = "https://download.pytorch.org/whl/cpu"
 explicit = true
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "UP", "I"]
+ignore = ["E203", "E231", "E241"]

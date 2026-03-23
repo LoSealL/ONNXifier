@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 import os
-from typing import Dict, Literal, Optional
+from typing import Literal
 
 import numpy as np
 import onnx
@@ -26,7 +26,7 @@ from .graph import OnnxGraph
 
 
 def show_difference(
-    a: np.ndarray, b: np.ndarray, atol: float = 1e-8, rtol: Optional[float] = None
+    a: np.ndarray, b: np.ndarray, atol: float = 1e-8, rtol: float | None = None
 ):
     """Print the different element from array a and b."""
     if rtol is not None:
@@ -38,9 +38,9 @@ def show_difference(
 def check_accuracy(
     model1: str | os.PathLike | onnx.ModelProto,
     model2: str | os.PathLike | onnx.ModelProto,
-    input_maps: Optional[Dict[str, np.ndarray]] = None,
+    input_maps: dict[str, np.ndarray] | None = None,
     backend: Literal["onnx", "onnxruntime", "openvino"] = "onnx",
-) -> Dict[str, Dict[str, float]]:
+) -> dict[str, dict[str, float]]:
     """
     Check the accuracy of two ONNX models.
 
@@ -89,7 +89,7 @@ def check_accuracy(
     results1 = runner1(list(output_maps), input_maps1)
     results2 = runner2(list(output_maps), input_maps2)
 
-    error_maps: Dict[str, Dict[str, float]] = {}
+    error_maps: dict[str, dict[str, float]] = {}
     for name, x, y in zip(output_maps, results1, results2):
         abs_error = np.abs(x - y)
         rel_mask = np.abs(x) > np.finfo(x.dtype).eps

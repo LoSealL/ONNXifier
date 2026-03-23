@@ -16,8 +16,6 @@ limitations under the License.
 
 # pylint: disable=missing-docstring
 
-from typing import List
-
 import numpy as np
 import onnx
 import pytest
@@ -36,7 +34,7 @@ class TestRewriter(Rewriter):
         super().__init__(pattern, repeat)
         self.test_func = test_func
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto], *args, **kwargs):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto], *args, **kwargs):
         self.test_func(self, graph, nodes, *args, **kwargs)
 
 

@@ -16,7 +16,7 @@ limitations under the License.
 
 import itertools
 from collections import defaultdict
-from typing import Dict, List, Optional, Sequence, Set
+from collections.abc import Sequence
 
 import networkx as nx
 import numpy as np
@@ -30,7 +30,7 @@ from ..pattern import SingleNodePattern
 from ..utils import evaluate_on_node, make_constant
 
 
-def _ensure_simple_batch(node_name, indices: Set[int]):
+def _ensure_simple_batch(node_name, indices: set[int]):
     if len(indices) > 1:
         raise NotImplementedError(
             f"The input of operator {node_name} has complex batch definition."
@@ -38,7 +38,7 @@ def _ensure_simple_batch(node_name, indices: Set[int]):
 
 
 def _get_dim_after_transpose(node_pb: NodeProto, index: int) -> int:
-    perm: List[int] = []
+    perm: list[int] = []
     for t in node_pb.attribute:
         if t.name == "perm":
             perm = list(t.ints)
@@ -74,7 +74,7 @@ def _get_dim_after_reshape(graph: OnnxGraph, node_pb: NodeProto, index: int) -> 
     raise NotImplementedError(f"Complex reshape {input_shape} -> {output_shape}")
 
 
-def _canonicalize_neg_axes(axes, rank: int) -> List[int]:
+def _canonicalize_neg_axes(axes, rank: int) -> list[int]:
     if axes.ndim == 0:
         axes = axes[None]
     axes = list(axes)
@@ -85,7 +85,7 @@ def _canonicalize_neg_axes(axes, rank: int) -> List[int]:
 
 
 def _get_dim_after_squeeze(graph: OnnxGraph, node_pb: NodeProto, index: int) -> int:
-    axes: Optional[Sequence[int] | np.ndarray] = []
+    axes: Sequence[int] | np.ndarray | None = []
     if node_pb.input[1] in graph.initializers:
         axes = to_array(graph.initializers[node_pb.input[1]])
     else:
@@ -105,7 +105,7 @@ def _get_dim_after_squeeze(graph: OnnxGraph, node_pb: NodeProto, index: int) -> 
 
 
 def _get_dim_after_unsqueeze(graph: OnnxGraph, node_pb: NodeProto, index: int) -> int:
-    axes: Optional[Sequence[int] | np.ndarray] = []
+    axes: Sequence[int] | np.ndarray | None = []
     if node_pb.input[1] in graph.initializers:
         axes = to_array(graph.initializers[node_pb.input[1]])
     else:
@@ -147,9 +147,7 @@ def _dispatch_shuffle_op(graph: OnnxGraph, node_pb: NodeProto, index: int) -> in
     return index
 
 
-def trace_batch_dimension(
-    graph: OnnxGraph, batch_index: Optional[Dict[str, int]] = None
-):
+def trace_batch_dimension(graph: OnnxGraph, batch_index: dict[str, int] | None = None):
     """trace the batch dimension of the graph.
 
     Args:
@@ -165,12 +163,12 @@ def trace_batch_dimension(
 
     # tracking the dimension index of the inputs,
     # change only after {transpose, reshape}.
-    input_index_tracing: Dict[str, Set[int]] = defaultdict(set)
-    output_index_tracing: Dict[str, Set[int]] = defaultdict(set)
+    input_index_tracing: dict[str, set[int]] = defaultdict(set)
+    output_index_tracing: dict[str, set[int]] = defaultdict(set)
     for node_name in nx.topological_sort(graph):
         node_pb: NodeProto = graph.nodes[node_name]["pb"]
         if graph.nodes[node_name]["has_input"]:
-            indices: Set[int] = set()
+            indices: set[int] = set()
             for input_name in node_pb.input:
                 if input_name in batch_index:
                     indices.add(batch_index[input_name])
@@ -206,7 +204,7 @@ class ResetReshapeBatchRewriter(Rewriter):
 
     def __init__(self):
         super().__init__(pattern=SingleNodePattern("Reshape"))
-        self.index_tracing: Dict[str, Set[int]] = {}
+        self.index_tracing: dict[str, set[int]] = {}
 
     def match_and_rewrite(self, graph: OnnxGraph, *args, **kwargs) -> OnnxGraph:
         self.index_tracing = trace_batch_dimension(graph, kwargs.get("batch_index"))

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import List, Optional, Sequence
+from collections.abc import Sequence
 
 import networkx as nx
 import numpy as np
@@ -56,7 +56,7 @@ class ReorderTransposeToDownstreamRewriter(Rewriter):
             .union(self._reduce_ops)
         )
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto]):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
         trans_node = nodes[0]
         allowed_nodes = set()
         for i in nx.descendants(graph, trans_node.name):
@@ -137,7 +137,7 @@ class ReorderTransposeToDownstreamRewriter(Rewriter):
         return set(traced_path)
 
     def _rewrite_binary_op(
-        self, graph: OnnxGraph, node: NodeProto, another_input: str, perm: List[int]
+        self, graph: OnnxGraph, node: NodeProto, another_input: str, perm: list[int]
     ):
         inv_perm = [perm.index(i) for i in range(len(perm))]
         shape = graph.tensor_shape(another_input)
@@ -169,7 +169,7 @@ class ReorderTransposeToDownstreamRewriter(Rewriter):
             node.input[input_ind] = trans_node.output[0]
             self += trans_node
 
-    def _rewrite_reaxis_op(self, graph: OnnxGraph, node: NodeProto, perm: List[int]):
+    def _rewrite_reaxis_op(self, graph: OnnxGraph, node: NodeProto, perm: list[int]):
         axis = self.get_attribute(node, "axis")
         if axis is not None:
             assert isinstance(axis, int)
@@ -178,7 +178,7 @@ class ReorderTransposeToDownstreamRewriter(Rewriter):
             new_axis = perm.index(axis)
             self.set_attribute(node, "axis", new_axis)
         elif node.op_type in ("Pad", "Slice"):
-            axes: Optional[Sequence[int] | np.ndarray] = None
+            axes: Sequence[int] | np.ndarray | None = None
             if len(node.input) > 3:
                 axes = self.get_value(node.input[3])
             else:

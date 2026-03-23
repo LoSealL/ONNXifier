@@ -15,7 +15,6 @@ limitations under the License.
 """
 
 # pylint: disable=arguments-differ
-from typing import Dict, List, Tuple, Union
 
 import numpy as np
 from onnx.onnx_pb import NodeProto
@@ -30,7 +29,7 @@ from ..rewriter import Rewriter
 class InspectSparsityRatio(Rewriter):
     """Inspect Sparsity Ratio"""
 
-    _global_sparsity: Dict[int, Dict[str, Tuple[Tuple[int, ...], float]]] = {}
+    _global_sparsity: dict[int, dict[str, tuple[tuple[int, ...], float]]] = {}
     """Global sparsity mapping, graph id to layer->(shape, sparsity ratio)"""
 
     def __init__(self):
@@ -62,9 +61,9 @@ class InspectSparsityRatio(Rewriter):
     def get_sparse_ratio(
         self,
         weight: NodeProto,
-        zero_point: Union[int, np.ndarray] = 0,
+        zero_point: int | np.ndarray = 0,
         op_type: str = "Conv",
-    ) -> Tuple[Tuple[int, ...], float]:
+    ) -> tuple[tuple[int, ...], float]:
         """Inspect sparse ratio on specific location"""
         weight_value = self.get_value(weight)
         if weight_value is None:
@@ -81,7 +80,7 @@ class InspectSparsityRatio(Rewriter):
         sparse_ratio = np.count_nonzero(weight_value == zero_point) / weight_value.size
         return weight_value.shape, sparse_ratio
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto]):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
         if id(graph) not in self._global_sparsity:
             self._global_sparsity[id(graph)] = {}
         sparse_map = self._global_sparsity[id(graph)]

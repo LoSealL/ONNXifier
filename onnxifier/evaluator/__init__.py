@@ -23,9 +23,10 @@ Choose a proper backend to evaluate ONNX models.
 
 import os
 import warnings
+from collections.abc import Callable, Sequence
 from contextlib import suppress
 from tempfile import TemporaryDirectory
-from typing import Any, Callable, Dict, List, Literal, Sequence, Tuple
+from typing import Any, Literal
 
 import numpy as np
 import onnx
@@ -71,8 +72,8 @@ def _get_eval_onnxruntime(model):
         sess = onnxruntime.InferenceSession(model)
 
     def _run_code(
-        output_names: Sequence[str] | None, inputs_feed: Dict[str, np.ndarray]
-    ) -> List[Any]:
+        output_names: Sequence[str] | None, inputs_feed: dict[str, np.ndarray]
+    ) -> list[Any]:
         return list(sess.run(output_names, inputs_feed))
 
     def _data_mapping():
@@ -132,18 +133,12 @@ def _get_eval_openvino(model):
     inputs = {}
     outputs = {}
     for i, inp in enumerate(network.inputs):
-        if inp.names:
-            key = inp.get_any_name()
-        else:
-            key = i
+        key = inp.get_any_name() if inp.names else i
         inputs[key] = dict(
             shape=tuple(inp.shape), dtype=inp.get_element_type().to_dtype()
         )
     for i, oup in enumerate(network.outputs):
-        if oup.names:
-            key = oup.get_any_name()
-        else:
-            key = i
+        key = oup.get_any_name() if oup.names else i
         outputs[key] = dict(
             shape=tuple(oup.shape), dtype=oup.get_element_type().to_dtype()
         )
@@ -154,10 +149,10 @@ def _get_eval_openvino(model):
 # pyright: ignore[reportReturnType]
 def _get_eval_backend(
     backend: str, model: str | os.PathLike | onnx.ModelProto
-) -> Tuple[
-    Callable[[Sequence[str] | None, Dict[str, np.ndarray]], List[np.ndarray]],
-    Dict,
-    Dict,
+) -> tuple[
+    Callable[[Sequence[str] | None, dict[str, np.ndarray]], list[np.ndarray]],
+    dict,
+    dict,
 ]:
     if backend == "onnx":
         return _get_eval_onnx(model)
@@ -199,15 +194,15 @@ class Evaluator:
     def __call__(
         self,
         output_names: Sequence[str] | None,
-        feed_inputs: Dict[str, np.ndarray] | None = None,
+        feed_inputs: dict[str, np.ndarray] | None = None,
         **kw_feeds: np.ndarray,
-    ) -> List[np.ndarray]:
+    ) -> list[np.ndarray]:
         if feed_inputs is None and not kw_feeds:
             raise ValueError(
                 "Either feed_inputs or **kw_feeds should be provided."
                 " But both are None."
             )
-        model_inputs: Dict[str, np.ndarray] = {}
+        model_inputs: dict[str, np.ndarray] = {}
         if feed_inputs:
             model_inputs.update(feed_inputs)
         if kw_feeds:

@@ -14,8 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import List
-
 import numpy as np
 from onnx import NodeProto
 from onnx.helper import make_node
@@ -45,7 +43,7 @@ class Col2ImToDepthToSpaceRewriter(Rewriter):
     def __init__(self):
         super().__init__(SingleNodePattern("Col2Im"))
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto]):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
         node = nodes[0]
 
         dilations = self.get_attribute(node, "dilations", [1])

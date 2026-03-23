@@ -16,8 +16,6 @@ limitations under the License.
 
 # pylint: disable=arguments-differ
 
-from typing import List
-
 import numpy as np
 from onnx.helper import make_node
 
@@ -44,7 +42,7 @@ class ExpandMatMulRewriter(Rewriter):
         """Align size to the next multiple of factor"""
         return ((size + self.factor - 1) // self.factor) * self.factor
 
-    def _expand_shape_skip_batch(self, shape: List[int]) -> List[int]:
+    def _expand_shape_skip_batch(self, shape: list[int]) -> list[int]:
         """Expand shape but skip batch dimensions for MatMul
 
         For MatMul:
@@ -62,7 +60,7 @@ class ExpandMatMulRewriter(Rewriter):
             ]  # Expand matrix dimensions
             return batch_dims + matrix_dims
 
-    def rewrite(self, graph: OnnxGraph, nodes: List):
+    def rewrite(self, graph: OnnxGraph, nodes: list):
         matmul_node = nodes[0]
 
         # Get input shapes
@@ -136,8 +134,8 @@ class ExpandMatMulRewriter(Rewriter):
         graph: OnnxGraph,
         matmul_node,
         input_index: int,
-        original_shape: List[int],
-        expanded_shape: List[int],
+        original_shape: list[int],
+        expanded_shape: list[int],
         suffix: str,
     ) -> str:
         """Unified method to expand tensor (either input or weight)"""
@@ -162,8 +160,8 @@ class ExpandMatMulRewriter(Rewriter):
         self,
         graph: OnnxGraph,
         input_name: str,
-        original_shape: List[int],
-        expanded_shape: List[int],
+        original_shape: list[int],
+        expanded_shape: list[int],
         suffix: str,
     ) -> str:
         """Expand input using Pad operator to maintain graph input/output shapes"""
@@ -202,7 +200,7 @@ class ExpandMatMulRewriter(Rewriter):
         return padded_name
 
     def _expand_weight(
-        self, weight_node, original_shape: List[int], expanded_shape: List[int]
+        self, weight_node, original_shape: list[int], expanded_shape: list[int]
     ) -> str:
         """Expand weight tensor by zero-padding"""
         weight_value = self.get_value_or_die(weight_node)
@@ -226,8 +224,8 @@ class ExpandMatMulRewriter(Rewriter):
         return expanded_weight_node.output[0]
 
     def _calculate_matmul_output_shape(
-        self, shape_a: List[int], shape_b: List[int]
-    ) -> List[int]:
+        self, shape_a: list[int], shape_b: list[int]
+    ) -> list[int]:
         """Calculate MatMul output shape"""
         # For MatMul: (..., K) x (K, N) -> (..., N)
         # or (..., M, K) x (..., K, N) -> (..., M, N) for batch dimensions
@@ -270,8 +268,8 @@ class ExpandMatMulRewriter(Rewriter):
         self,
         input_name: str,
         output_name: str,
-        input_shape: List[int],
-        output_shape: List[int],
+        input_shape: list[int],
+        output_shape: list[int],
         node_name: str,
     ):
         """Create slice node to crop expanded output back to original shape"""

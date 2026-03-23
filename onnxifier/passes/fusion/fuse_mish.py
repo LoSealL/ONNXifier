@@ -16,8 +16,6 @@ limitations under the License.
 
 # pylint: disable=arguments-differ
 
-from typing import List
-
 from onnx.helper import make_node
 from onnx.onnx_pb import NodeProto
 
@@ -61,7 +59,7 @@ class FuseMishRewriter(Rewriter):
         pattern.add_edge(node_a, mul)
         super().__init__(pattern)
 
-    def rewrite(self, graph: OnnxGraph, nodes: List[NodeProto]):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
         _, softplus, tanh, mul = nodes
         mish = make_node(
             "Mish",

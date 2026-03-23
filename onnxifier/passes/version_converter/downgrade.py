@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import List, Sequence, Type
+from collections.abc import Sequence
 
 import networkx as nx
 
@@ -25,10 +25,10 @@ from ...passes.rewriter import Rewriter
 from . import OP_CONVERTER
 
 
-def _expand_deps(deps: Sequence[str | Type[Rewriter]]):
+def _expand_deps(deps: Sequence[str | type[Rewriter]]):
     root: nx.DiGraph = nx.DiGraph()
     root.add_nodes_from(deps)
-    leaves: List[str | Type[Rewriter]] = list(deps).copy()
+    leaves: list[str | type[Rewriter]] = list(deps).copy()
     while leaves:
         leaf = leaves.pop(0)
         children = PASSES[leaf].__DEPS__
