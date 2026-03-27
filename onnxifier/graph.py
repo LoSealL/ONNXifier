@@ -706,7 +706,14 @@ class OnnxGraph(nx.DiGraph):
             }
             self._value_info_update = list(values_map.values())
         graph.ClearField("value_info")
-        for n in nx.topological_sort(self):
+        # check cycles
+        if not nx.is_directed_acyclic_graph(self):
+            node_gen = iter(self)
+            for cycle in nx.simple_cycles(self, length_bound=10):
+                error(f"Cycle detected: {' -> '.join(cycle)}")
+        else:
+            node_gen = nx.topological_sort(self)
+        for n in node_gen:
             graph.node.append(self.nodes[n]["pb"])
         graph.value_info.extend(self._value_info_update)
         model = make_model(
