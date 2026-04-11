@@ -14,6 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from pathlib import Path
+
 from ... import OnnxGraph
 from .. import PASSES
 
@@ -32,4 +34,24 @@ def restore_external_data(graph: OnnxGraph, external_data_dir: str = "."):
 
     graph.external_base = external_data_dir
     graph.restore_tensors_from_external()
+    return graph
+
+
+@PASSES.register("save_external_data")
+def save_external_data(graph: OnnxGraph, external_data: str = "."):
+    """Save tensors as external data in a specified directory.
+
+    Args:
+        external_data_dir (str): Directory where external data files will be saved.
+
+    Example:
+
+        onnxifier model.onnx -a save_external_data --external_data_dir="."
+    """
+
+    if Path(external_data).is_dir():
+        location = Path(external_data) / "model_data"
+    else:
+        location = Path(external_data)
+    graph.save_tensors_to_external(location=location)
     return graph

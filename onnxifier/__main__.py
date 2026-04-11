@@ -1,5 +1,5 @@
 """
-Copyright (C) 2025 The ONNXIFIER Authors.
+Copyright (C) 2026 The ONNXIFIER Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -206,7 +206,7 @@ def read_configs_from_args_or_file(args, argv) -> tuple[Path, Path, dict | None]
         raise RuntimeError(f"invalid args: {' '.join(errors)}")
     input_model = Path(input_url).expanduser()
     if not output_url:
-        output_url = input_model.stem + "_o2o"
+        output_url = input_model.stem + "_new" + input_model.suffix
     output_model = Path(output_url).expanduser()
 
     if args.activate and len(args.activate) == 1 and "" in configs:

@@ -1,5 +1,5 @@
 """
-Copyright (C) 2025 The ONNXIFIER Authors.
+Copyright (C) 2026 The ONNXIFIER Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import pytest
 from onnxifier import OnnxGraph, PassManager
 from onnxifier.passes import PASSES, Rewriter
 from onnxifier.passes.pattern import SingleNodePattern
+from onnxifier.utils import chdir
 
 
 @PASSES.register(name="function_in_test")
@@ -75,13 +76,14 @@ def test_pass_manager_default():
     pass_manager.optimize(graph)
 
 
-def test_pass_manager_include_and_exclude():
+def test_pass_manager_include_and_exclude(tmp_path):
     passes = list(iter(PASSES))
     random.shuffle(passes)
     cut_pos = len(passes) // 2
     pass_manager = PassManager(passes[:cut_pos], passes[cut_pos:])
     graph = OnnxGraph(_empty_model())
-    pass_manager.optimize(graph)
+    with chdir(tmp_path):
+        pass_manager.optimize(graph)
 
 
 def test_pass_manager_include_instance():

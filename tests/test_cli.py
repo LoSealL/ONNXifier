@@ -1,5 +1,5 @@
 """
-Copyright (C) 2025 The ONNXIFIER Authors.
+Copyright (C) 2026 The ONNXIFIER Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -253,7 +253,7 @@ class TestMain:
     def test_main_basic_conversion(self, mock_print, mock_convert_graph):
         """Test basic model conversion"""
         mock_graph = MagicMock()
-        mock_graph.save.return_value = Path("model_o2o.onnx")
+        mock_graph.save.return_value = Path("model_new.onnx")
         mock_convert_graph.return_value = mock_graph
 
         with patch("sys.argv", ["onnxifier", "model.onnx"]):
@@ -270,12 +270,12 @@ class TestMain:
             specify_node_names=None,
         )
         mock_graph.save.assert_called_once_with(
-            Path("model_o2o").expanduser(),
+            Path("model_new.onnx").expanduser(),
             format=None,
             infer_shapes=False,
             check=True,
         )
-        mock_print.assert_called_with("model saved to model_o2o.onnx")
+        mock_print.assert_called_with("model saved to model_new.onnx")
 
     @patch("onnxifier.__main__.convert_graph")
     def test_main_with_output_model(self, mock_convert_graph):
@@ -373,7 +373,7 @@ class TestMain:
             specify_node_names=None,
         )
         mock_graph.save.assert_called_once_with(
-            Path("model_o2o").expanduser(),
+            Path("model_new.onnx").expanduser(),
             format="protobuf",
             infer_shapes=True,
             check=True,
@@ -413,7 +413,7 @@ class TestMain:
             main()
 
         mock_graph.save.assert_called_once_with(
-            Path("model_o2o").expanduser(),
+            Path("model_new.onnx").expanduser(),
             format=None,
             infer_shapes=False,
             check=False,
@@ -575,8 +575,8 @@ class TestMain:
             # Should use default output name when no model specified but configs exist
             mock_graph.save.assert_called_once()
             save_args = mock_graph.save.call_args[0]
-            # The output should be input_o2o since no output model was specified
-            assert save_args[0] == Path("input_o2o").expanduser()
+            # The output should be input_new since no output model was specified
+            assert save_args[0] == Path("input_new.onnx").expanduser()
 
     def test_main_recursive(self):
         """Test main function with recursive flag"""

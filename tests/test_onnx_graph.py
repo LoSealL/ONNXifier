@@ -1,5 +1,5 @@
 """
-Copyright (C) 2025 The ONNXIFIER Authors.
+Copyright (C) 2026 The ONNXIFIER Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -261,7 +261,8 @@ def test_graph_property():
     assert graph.opset_version == 10
 
 
-def test_graph_save_as_external():
+def test_graph_save_as_external(tmp_path):
+    # pylint: disable=protected-access
     g = onnx.helper.make_graph(
         nodes=[
             onnx.helper.make_node(
@@ -319,37 +320,35 @@ def test_graph_save_as_external():
     onnx.checker.check_model(model, True, True)
     graph = OnnxGraph(model)
     graph.restore_tensors_from_external()
-    with tempfile.TemporaryDirectory() as tmpdir:
-        # pylint: disable=protected-access
-        graph.save(tmpdir + "/model.onnx", save_as_external_data=True)
-        model = onnx.load_model(tmpdir + "/model.onnx", load_external_data=False)
-        external_tensors = [
-            t
-            for t in onnx.external_data_helper._get_all_tensors(model)
-            if onnx.external_data_helper.uses_external_data(t)
-        ]
-        # onnx enumerating tensors could be duplicated, because it yield function twice
-        onnx.TensorProto.__hash__ = lambda x: hash(id(x))  # type: ignore
-        # function attribute could be saved as external data
-        assert len(set(external_tensors)) == 3
 
-        with pytest.raises(FileNotFoundError):
-            OnnxGraph(model, base_dir="wrong-base")
-        with chdir(tmpdir):
-            ext_graph = OnnxGraph(model)
-        ext_data = list(ext_graph.external_data)
-        assert len(ext_data) == 1
-        assert ext_data[0] == Path(tmpdir) / "model"
-        ext_graph.restore_tensors_from_external()
-        external_tensors = [
-            t
-            for t in onnx.external_data_helper._get_all_tensors(ext_graph.model)
-            if onnx.external_data_helper.uses_external_data(t)
-        ]
-        assert len(external_tensors) == 0
+    graph.save(tmp_path / "model.onnx", save_as_external_data=True)
+    model = onnx.load_model(tmp_path / "model.onnx", load_external_data=False)
+    external_tensors = [
+        t
+        for t in onnx.external_data_helper._get_all_tensors(model)
+        if onnx.external_data_helper.uses_external_data(t)
+    ]
+    # onnx enumerating tensors could be duplicated, because it yield function twice
+    onnx.TensorProto.__hash__ = lambda x: hash(id(x))  # type: ignore
+    # function attribute could be saved as external data
+    assert len(set(external_tensors)) == 3
+
+    with pytest.raises(FileNotFoundError):
+        OnnxGraph(model, base_dir="wrong-base")
+    with chdir(tmp_path):
+        ext_graph = OnnxGraph(model)
+    ext_data = list(ext_graph.external_data)
+    assert len(ext_data) == 1
+    assert ext_data[0] == Path(tmp_path) / "model"
+    ext_graph.restore_tensors_from_external()
+    external_tensors = [
+        t
+        for t in onnx.external_data_helper._get_all_tensors(ext_graph.model)
+        if onnx.external_data_helper.uses_external_data(t)
+    ]
+    assert len(external_tensors) == 0
     # save to a new location because graph has been restored
-    with tempfile.TemporaryDirectory() as tmpdir:
-        ext_graph.save(tmpdir + "/model.onnx", save_as_external_data=True)
+    ext_graph.save(tmp_path / "model.onnx", save_as_external_data=True)
 
 
 def test_graph_sibling_nodes():
