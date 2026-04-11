@@ -19,7 +19,7 @@ build-backend = "flit_core.buildapi"
 [project]
 name = "onnxifier"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 authors = [
     { name = "Wenyi Tang", email = "wenyitang@outlook.com" },
     { name = "Jianjin Liao", email = "1486660504@qq.com" },
@@ -46,20 +46,6 @@ Home = "https://github.com/LoSealL/onnxifier"
 Docs = "https://loseall.github.io/onnxifier"
 
 [project.optional-dependencies]
-test = [
-    "mypy",
-    "onnxoptimizer",
-    "onnxruntime",
-    "onnxscript>=0.5.7",
-    "onnxsim",
-    "openvino>=2025.0.0",
-    "pooch",
-    "pre-commit",
-    "pyright>=1.1.408",
-    "pytest",
-    "pytest-cov",
-    "torch",
-]
 fuzzy = ["tensorflow-cpu>=2.20.0", "pyyaml"]
 
 [project.scripts]
@@ -71,7 +57,15 @@ packages = ["onnxifier"]
 
 [tool.pyright]
 include = ["onnxifier"]
-exclude = ["onnxifier/domain/pytorch", "tests", "tests_omz_fuzzy"]
+exclude = [
+    "**/node_modules",
+    "**/__pycache__",
+    "**/.*",
+    ".venv",
+    "onnxifier/domain/pytorch",
+    "tests",
+    "tests_omz_fuzzy",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -112,19 +106,26 @@ exclude = [
     '^tests.*\.py$',
 ]
 
-[tool.uv.sources]
-torch = { index = "pytorch" }
-torchaudio = { index = "pytorch" }
-torchvision = { index = "pytorch" }
-
-[[tool.uv.index]]
-name = "pytorch"
-url = "https://download.pytorch.org/whl/cpu"
-explicit = true
-
 [tool.ruff]
 line-length = 88
 
 [tool.ruff.lint]
 select = ["E", "F", "UP", "I"]
 ignore = ["E203", "E231", "E241"]
+
+[dependency-groups]
+dev = [
+    "mypy",
+    "onnxoptimizer",
+    "onnxruntime",
+    "onnxscript>=0.5.7",
+    "onnxsim",
+    "openvino>=2025.0.0",
+    "pooch",
+    "pre-commit",
+    "pyright>=1.1.408",
+    "pytest",
+    "pytest-cov",
+    "torch",
+    "pytest>=9.0.3",
+]

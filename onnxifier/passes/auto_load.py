@@ -19,7 +19,7 @@ from pathlib import Path
 
 from ..logger import warning
 
-TOP = Path(__file__).parent.parent.parent.resolve()
+TOP = Path(__file__).parent.parent.parent
 
 
 def auto_load(cwd: str | Path, filters: set[str] | None = None, top: Path = TOP):
@@ -30,7 +30,7 @@ def auto_load(cwd: str | Path, filters: set[str] | None = None, top: Path = TOP)
         filters (Set[str], optional): patterns to filter out modules. Defaults to None.
         top (Path, optional): module top directory. Defaults to TOP.
     """
-    models_dir = Path(cwd).resolve()
+    models_dir = Path(cwd)
     package = models_dir.relative_to(top).as_posix().replace("/", ".")
 
     def _filter(p: Path) -> bool:

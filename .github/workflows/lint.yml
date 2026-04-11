@@ -24,6 +24,6 @@ jobs:
           node-version: lts/Jod
       - name: pyright type check
         run: |
-          uv sync --extra=test -U
+          uv sync --dev -U
           uv run pyright onnxifier
           uv run pre-commit run -s HEAD^ -o HEAD
