@@ -685,6 +685,18 @@ class OnnxGraph(nx.DiGraph):
                 del tensor.external_data[:]
         self._external_base = None
 
+    def save_tensors_to_external(self, location: str | os.PathLike = "model_data"):
+        """Save tensors as external data.
+
+        Args:
+            location (str | os.PathLike): Directory to save external data files.
+                Defaults to "model_data".
+        """
+        if not self._external_base:
+            self._external_base = Path.cwd().as_posix()
+        location = Path(location)
+        self.convert_tensors_to_external(location=location)
+
     def canonicalize_external_tensors(self):
         """When `numpy_helper.to_array` is called, a tensor with external data
         is loaded into .raw_data filed. We need to remove this filed to pass

@@ -1,6 +1,6 @@
 """An Open Neural Network Exchange (ONNX) Optimization and Transformation Tool.
 
-Copyright (C) 2025 The ONNXIFIER Authors.
+Copyright (C) 2026 The ONNXIFIER Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-__version__ = "2.0.3"
+__version__ = "2.0.4"
 
 import os
 from collections.abc import Sequence
