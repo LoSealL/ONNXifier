@@ -46,7 +46,7 @@ def _make_attention_node(
     node.output.extend(outputs)
 
     num_heads_attr = AttributeProto()
-    num_heads_attr.name = "num_heads"
+    num_heads_attr.name = "q_num_heads"
     num_heads_attr.type = AttributeProto.INT
     num_heads_attr.i = num_heads
     node.attribute.append(num_heads_attr)
@@ -72,7 +72,7 @@ class TestFromOnnxAttention:
             inputs=["q", "k", "v"],
             outputs=["output"],
         )
-        plugin_op = from_onnx_attention(op)
+        plugin_op = from_onnx_attention(op, 64)
 
         assert plugin_op.op_type == "AttentionPlugin"
         assert plugin_op.domain == "trt"
@@ -85,7 +85,7 @@ class TestFromOnnxAttention:
             inputs=["query_tensor", "key_tensor", "value_tensor"],
             outputs=["attn_output"],
         )
-        plugin_op = from_onnx_attention(op)
+        plugin_op = from_onnx_attention(op, 64)
 
         assert plugin_op.input[0] == "query_tensor"
         assert plugin_op.input[1] == "key_tensor"
@@ -96,7 +96,7 @@ class TestFromOnnxAttention:
             inputs=["q", "k", "v", "", "past_key", "past_value"],
             outputs=["output"],
         )
-        plugin_op = from_onnx_attention(op)
+        plugin_op = from_onnx_attention(op, 64)
 
         # past_key (input[4]) used as past_key_value
         assert plugin_op.input[3] == "past_key"
@@ -106,7 +106,7 @@ class TestFromOnnxAttention:
             inputs=["q", "k", "v"],
             outputs=["output"],
         )
-        plugin_op = from_onnx_attention(op)
+        plugin_op = from_onnx_attention(op, 64)
 
         assert plugin_op.input[3] == ""
 
@@ -115,7 +115,7 @@ class TestFromOnnxAttention:
             inputs=["q", "k", "v", "attn_mask_tensor"],
             outputs=["output"],
         )
-        plugin_op = from_onnx_attention(op)
+        plugin_op = from_onnx_attention(op, 64)
 
         assert plugin_op.input[7] == "attn_mask_tensor"
 
@@ -124,7 +124,7 @@ class TestFromOnnxAttention:
             inputs=["q", "k", "v"],
             outputs=["output"],
         )
-        plugin_op = from_onnx_attention(op, context_lengths="context_lens")
+        plugin_op = from_onnx_attention(op, 64, context_lengths="context_lens")
 
         assert plugin_op.input[4] == "context_lens"
 
@@ -133,7 +133,7 @@ class TestFromOnnxAttention:
             inputs=["q", "k", "v"],
             outputs=["output"],
         )
-        plugin_op = from_onnx_attention(op, rope_rotary_cos_sin="rope_embeds")
+        plugin_op = from_onnx_attention(op, 64, rope_rotary_cos_sin="rope_embeds")
 
         assert plugin_op.input[5] == "rope_embeds"
 
@@ -142,7 +142,7 @@ class TestFromOnnxAttention:
             inputs=["q", "k", "v"],
             outputs=["output"],
         )
-        plugin_op = from_onnx_attention(op, kvcache_start_index="kv_start_idx")
+        plugin_op = from_onnx_attention(op, 64, kvcache_start_index="kv_start_idx")
 
         assert plugin_op.input[6] == "kv_start_idx"
 
@@ -151,7 +151,7 @@ class TestFromOnnxAttention:
             inputs=["q", "k", "v"],
             outputs=["output"],
         )
-        plugin_op = from_onnx_attention(op, attention_pos_id="pos_ids")
+        plugin_op = from_onnx_attention(op, 64, attention_pos_id="pos_ids")
 
         assert plugin_op.input[8] == "pos_ids"
 
@@ -160,7 +160,7 @@ class TestFromOnnxAttention:
             inputs=["q", "k", "v"],
             outputs=["output"],
         )
-        plugin_op = from_onnx_attention(op, k_v_scale_quant_orig="kv_scales")
+        plugin_op = from_onnx_attention(op, 64, k_v_scale_quant_orig="kv_scales")
 
         assert plugin_op.input[9] == "kv_scales"
 
@@ -169,7 +169,7 @@ class TestFromOnnxAttention:
             inputs=["q", "k", "v"],
             outputs=["output"],
         )
-        plugin_op = from_onnx_attention(op, enable_tree_attention=1)
+        plugin_op = from_onnx_attention(op, 64, enable_tree_attention=1)
 
         attr_names = [a.name for a in plugin_op.attribute]
         assert "enable_tree_attention" in attr_names
@@ -182,7 +182,7 @@ class TestFromOnnxAttention:
             inputs=["q", "k", "v"],
             outputs=["output"],
         )
-        plugin_op = from_onnx_attention(op, enable_fp8_kv_cache=1)
+        plugin_op = from_onnx_attention(op, 64, enable_fp8_kv_cache=1)
 
         attr_names = [a.name for a in plugin_op.attribute]
         assert "enable_fp8_kv_cache" in attr_names
@@ -195,7 +195,7 @@ class TestFromOnnxAttention:
             inputs=["q", "k", "v"],
             outputs=["output"],
         )
-        plugin_op = from_onnx_attention(op, sliding_window_size=128)
+        plugin_op = from_onnx_attention(op, 64, sliding_window_size=128)
 
         attr_names = [a.name for a in plugin_op.attribute]
         assert "sliding_window_size" in attr_names
@@ -208,7 +208,7 @@ class TestFromOnnxAttention:
             inputs=["q", "k", "v"],
             outputs=["output"],
         )
-        plugin_op = from_onnx_attention(op, sliding_window_size=-1)
+        plugin_op = from_onnx_attention(op, 64, sliding_window_size=-1)
 
         attr_names = [a.name for a in plugin_op.attribute]
         assert "sliding_window_size" not in attr_names
@@ -220,7 +220,7 @@ class TestFromOnnxAttention:
             num_heads=8,
             kv_num_heads=8,
         )
-        plugin_op = from_onnx_attention(op)
+        plugin_op = from_onnx_attention(op, 64)
 
         for attr in plugin_op.attribute:
             if attr.name == "num_kv_heads":
@@ -231,7 +231,7 @@ class TestFromOnnxAttention:
             inputs=["q", "k", "v"],
             outputs=["attention_out", "present_key", "present_value"],
         )
-        plugin_op = from_onnx_attention(op)
+        plugin_op = from_onnx_attention(op, 64)
 
         assert plugin_op.output[0] == "attention_out"
         assert plugin_op.output[1] == "present_key"
@@ -246,6 +246,7 @@ class TestFromOnnxAttention:
         )
         plugin_op = from_onnx_attention(
             op,
+            128,
             enable_tree_attention=1,
             enable_fp8_kv_cache=1,
             sliding_window_size=256,

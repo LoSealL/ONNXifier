@@ -36,7 +36,7 @@ def _make_attention_node(
     node.output.extend(outputs)
 
     num_heads_attr = AttributeProto()
-    num_heads_attr.name = "num_heads"
+    num_heads_attr.name = "q_num_heads"
     num_heads_attr.type = AttributeProto.INT
     num_heads_attr.i = num_heads
     node.attribute.append(num_heads_attr)
@@ -56,7 +56,7 @@ class TestFromOnnxAttention:
             inputs=["q", "k", "v"],
             outputs=["output"],
         )
-        plugin_op = from_onnx_attention(op)
+        plugin_op = from_onnx_attention(op, 64)
 
         assert plugin_op.op_type == "ViTAttentionPlugin"
         assert plugin_op.domain == "trt"
@@ -69,7 +69,7 @@ class TestFromOnnxAttention:
             inputs=["query_tensor", "key_tensor", "value_tensor"],
             outputs=["attn_output"],
         )
-        plugin_op = from_onnx_attention(op)
+        plugin_op = from_onnx_attention(op, 64)
 
         assert plugin_op.input[0] == "query_tensor"
         assert plugin_op.input[1] == "key_tensor"
@@ -80,7 +80,7 @@ class TestFromOnnxAttention:
             inputs=["q", "k", "v"],
             outputs=["output"],
         )
-        plugin_op = from_onnx_attention(op, cu_seqlens="cu_seqlens_tensor")
+        plugin_op = from_onnx_attention(op, 64, cu_seqlens="cu_seqlens_tensor")
 
         assert plugin_op.input[3] == "cu_seqlens_tensor"
 
@@ -89,7 +89,7 @@ class TestFromOnnxAttention:
             inputs=["q", "k", "v"],
             outputs=["output"],
         )
-        plugin_op = from_onnx_attention(op, max_seqlen_carrier="max_seqlen_tensor")
+        plugin_op = from_onnx_attention(op, 64, max_seqlen_carrier="max_seqlen_tensor")
 
         assert plugin_op.input[4] == "max_seqlen_tensor"
 
@@ -99,7 +99,7 @@ class TestFromOnnxAttention:
             outputs=["output"],
             num_heads=8,
         )
-        plugin_op = from_onnx_attention(op)
+        plugin_op = from_onnx_attention(op, 64)
 
         for attr in plugin_op.attribute:
             if attr.name == "num_heads":
@@ -111,7 +111,7 @@ class TestFromOnnxAttention:
             outputs=["output"],
             head_size=128,
         )
-        plugin_op = from_onnx_attention(op)
+        plugin_op = from_onnx_attention(op, 128)
 
         for attr in plugin_op.attribute:
             if attr.name == "head_size":
@@ -122,7 +122,7 @@ class TestFromOnnxAttention:
             inputs=["q", "k", "v"],
             outputs=["attention_out", "present_key", "present_value"],
         )
-        plugin_op = from_onnx_attention(op)
+        plugin_op = from_onnx_attention(op, 64)
 
         assert plugin_op.output[0] == "attention_out"
 
@@ -135,6 +135,7 @@ class TestFromOnnxAttention:
         )
         plugin_op = from_onnx_attention(
             op,
+            64,
             cu_seqlens="seq_lengths",
             max_seqlen_carrier="max_seq",
         )

@@ -20,6 +20,8 @@ from onnx.defs import OpSchema
 from .. import TRT_IR_DOMAIN
 from .attention_plugin import _get_int_attribute
 
+_T = "T", ["tensor(float16)", "tensor(bfloat16)", "tensor(float)"]
+
 # Define ONNX OpSchema for ViTAttentionPlugin
 vit_attention_plugin_schema = OpSchema(
     name="ViTAttentionPlugin",
@@ -30,17 +32,17 @@ vit_attention_plugin_schema = OpSchema(
         OpSchema.FormalParameter(
             name="q",
             description="Query tensor in head-major layout [total_S, H, D]",
-            type_str="T",
+            type_str=_T[0],
         ),
         OpSchema.FormalParameter(
             name="k",
             description="Key tensor in head-major layout [total_S, H, D]",
-            type_str="T",
+            type_str=_T[0],
         ),
         OpSchema.FormalParameter(
             name="v",
             description="Value tensor in head-major layout [total_S, H, D]",
-            type_str="T",
+            type_str=_T[0],
         ),
         OpSchema.FormalParameter(
             name="cu_seqlens",
@@ -60,11 +62,11 @@ vit_attention_plugin_schema = OpSchema(
         OpSchema.FormalParameter(
             name="attn_output",
             description="Attention output tensor [total_S, H, D]",
-            type_str="T",
+            type_str=_T[0],
         ),
     ],
     type_constraints=[
-        ("T", ["tensor(float16)"], "Input Q/K/V data type."),
+        (*_T, "Input Q/K/V data type."),
     ],
     attributes=[
         OpSchema.Attribute(
@@ -87,6 +89,7 @@ onnx.defs.register_schema(vit_attention_plugin_schema)
 
 def from_onnx_attention(
     op: onnx.NodeProto,
+    head_size: int,
     *,
     cu_seqlens: str = "",
     max_seqlen_carrier: str = "",
@@ -118,6 +121,7 @@ def from_onnx_attention(
 
     Args:
         op: The ONNX Attention node to convert.
+        head_size: Required attention head size provided by caller.
         cu_seqlens: Input name for cumulative sequence lengths (int32, shape [B+1]).
             Does not exist in standard ONNX Attention - use as kwarg.
         max_seqlen_carrier: Input name for max sequence length hint (shape-only).
@@ -136,9 +140,12 @@ def from_onnx_attention(
     plugin_op.input.append(cu_seqlens)
     plugin_op.input.append(max_seqlen_carrier)
 
-    # Extract attributes from ONNX Attention
-    num_heads = _get_int_attribute(op, "num_heads", 0)
-    head_size = _get_int_attribute(op, "head_size", 0)
+    # Extract attributes from ONNX Attention (spec: q_num_heads)
+    num_heads = _get_int_attribute(op, "q_num_heads", 0)
+    if head_size <= 0:
+        raise ValueError(
+            "head_size must be a positive integer for ViTAttentionPlugin conversion."
+        )
 
     # Set required attributes on plugin op
     num_heads_attr = onnx.AttributeProto()
@@ -150,7 +157,7 @@ def from_onnx_attention(
     head_size_attr = onnx.AttributeProto()
     head_size_attr.name = "head_size"
     head_size_attr.type = onnx.AttributeProto.INT
-    head_size_attr.i = head_size
+    head_size_attr.i = int(head_size)
     plugin_op.attribute.append(head_size_attr)
 
     # Map output: ONNX output[0] (Y) -> attn_output

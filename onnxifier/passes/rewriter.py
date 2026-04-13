@@ -17,7 +17,7 @@ limitations under the License.
 from abc import ABCMeta, abstractmethod
 from collections.abc import Callable, Generator, Sequence, Sized
 from enum import Enum
-from typing import Any
+from typing import Any, TypeVar, overload
 from uuid import uuid4
 
 import numpy as np
@@ -26,9 +26,11 @@ from onnx import FunctionProto, numpy_helper
 from onnx.helper import make_attribute, make_function, make_operatorsetid
 
 from ..graph import OnnxGraph
-from ..logger import error
+from ..logger import error, trace
 from .pattern import Pattern
 from .utils import attribute_value, evaluate_on_node
+
+T = TypeVar("T")
 
 
 class RewriterRepeat(Enum):
@@ -139,7 +141,8 @@ class Rewriter(metaclass=MetaRewriter):
         """
         repeat = self.repeat
         self.num_rewrites = 0
-        for hook_fn in self.pre_hooks.values():
+        for hook_id, hook_fn in self.pre_hooks.items():
+            trace("Apply pre hook %s before %s", hook_id, type(self).__name__)
             graph = hook_fn(graph)
         _names: set[str] = set()
         if names:
@@ -173,24 +176,27 @@ class Rewriter(metaclass=MetaRewriter):
                         self.rewrite(graph, nodes, *args, **kwargs)
                     except Exception:
                         nodes_name = ",".join(n.name for n in nodes)
-                        error(f"Rewrite nodes [{nodes_name}] failed.")
+                        error("Rewrite nodes [%s] failed.", nodes_name)
                         raise
                     finally:
                         self.num_rewrites += 1
             if i is None:
                 break  # no match found
             for node in self.node_to_add:
+                trace("Add node %s(%s)", node.name, node.op_type)
                 graph.add_onnx_node(node)
             added_node_names = set([n.name for n in self.node_to_add])
             for node in self.node_to_remove:
                 if node.name in added_node_names:
                     # this node has been replaced by a new node, skip it
                     continue
+                trace("Remove node %s(%s)", node.name, node.op_type)
                 graph.remove_onnx_node(node)
             self.node_to_add.clear()
             self.node_to_remove.clear()
             repeat -= 1
-        for hook_fn in self.post_hooks.values():
+        for hook_id, hook_fn in self.post_hooks.items():
+            trace("Apply post hook %s after %s", hook_id, type(self).__name__)
             graph = hook_fn(graph)
         return graph
 
@@ -239,6 +245,12 @@ class Rewriter(metaclass=MetaRewriter):
         else:
             port = i_or_s
         return [s for s in graph.onnx_successors(node) if port in s.input]
+
+    @overload
+    def get_attribute(self, node: onnx.NodeProto, name: str) -> Any | None: ...
+
+    @overload
+    def get_attribute(self, node: onnx.NodeProto, name: str, default: T) -> T: ...
 
     def get_attribute(self, node: onnx.NodeProto, name: str, default=None):
         """Try to get the value of an attribute of the node.

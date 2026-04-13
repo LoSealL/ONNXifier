@@ -17,7 +17,6 @@ limitations under the License.
 # pylint: disable=arguments-differ
 
 from onnx import NodeProto
-from onnx.helper import make_tensor_type_proto, make_value_info
 
 from ...graph import OnnxGraph
 from .. import PASSES
@@ -32,11 +31,11 @@ class AttentionAddKVCacheRewriter(Rewriter):
     This rewriter transforms an attention op without KV cache to one with KV cache:
 
     Before (opset 23/24):
-        Attention(input, weight, bias) -> (output)
+        Attention(Q, K, V) -> (Y)
 
     After:
-        Attention(input, weight, bias, past_key, past_value) ->
-            (output, present_key, present_value)
+        Attention(Q, K, V, "", past_key, past_value) ->
+            (Y, present_key, present_value)
 
     And adds past_key, past_value as graph inputs and
     present_key, present_value as graph outputs.
@@ -44,30 +43,52 @@ class AttentionAddKVCacheRewriter(Rewriter):
     Optionally sets sequence length as a dynamic axis for the past/present tensors.
     """
 
-    def __init__(self, sequence_length: int | str | None = None):
+    def __init__(self):
         super().__init__(SingleNodePattern("Attention"))
-        self.sequence_length = sequence_length
 
     def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
         node = nodes[0]
 
-        # Only apply to opset 23 or 24
-        if graph.opset_version not in (23, 24):
+        def _has_value(items, index: int) -> bool:
+            return len(items) > index and bool(items[index])
+
+        # Only apply to opset 23 or higher
+        if graph.opset_version < 23:
             return
 
-        # Check if the node already has past_key/past_value inputs
-        # Attention: input, weight, bias (opt), past_key (opt), past_value (opt)
-        # Without KV cache: 3 inputs (input, weight, bias)
-        # With KV cache: 5 inputs (input, weight, bias, past_key, past_value)
-        has_kv_cache = len(node.input) >= 5 and node.input[3] and node.input[4]
+        # ONNX Attention(23/24) inputs are positional:
+        #   0:Q, 1:K, 2:V, 3:attn_mask(opt), 4:past_key(opt),
+        #   5:past_value(opt), 6:nonpad_kv_seqlen(opt, opset 24)
+        # KV cache requires both past_key and past_value.
+        has_past_key = _has_value(node.input, 4)
+        has_past_value = _has_value(node.input, 5)
+        has_kv_cache = has_past_key and has_past_value
         if has_kv_cache:
             return
 
-        # Check if the node already has present_key/present_value outputs
-        # Without KV cache: 1 output (output)
-        # With KV cache: 3 outputs (output, present_key, present_value)
-        has_present = len(node.output) >= 3 and node.output[1] and node.output[2]
+        # Incomplete cache state is invalid; avoid mutating such nodes.
+        if has_past_key != has_past_value:
+            return
+
+        # Spec forbids using nonpad_kv_seqlen together with past/present KV cache.
+        if _has_value(node.input, 6):
+            return
+
+        # Outputs are positional:
+        #   0:Y, 1:present_key(opt), 2:present_value(opt), 3:qk_matmul_output(opt)
+        has_present_key = _has_value(node.output, 1)
+        has_present_value = _has_value(node.output, 2)
+        has_present = has_present_key and has_present_value
         if has_present:
+            return
+
+        # Incomplete present state is invalid; avoid mutating such nodes.
+        if has_present_key != has_present_value:
+            return
+
+        # If output #1 is already used (for example qk_matmul_output only), adding
+        # present outputs would change output semantics by position.
+        if len(node.output) > 1:
             return
 
         # Generate names for past/present key/value tensors
@@ -85,53 +106,36 @@ class AttentionAddKVCacheRewriter(Rewriter):
         past_seq_len = "past_seq_len"
         present_seq_len = "present_seq_len"
 
-        # Create value info for past_key and past_value inputs
+        # Resolve shapes for past_key and past_value inputs
         past_shape = self._make_past_shape(input_shape, past_seq_len)
-        past_key_info = make_value_info(
-            past_key_name, make_tensor_type_proto(input_dtype, past_shape)
-        )
-        past_value_info = make_value_info(
-            past_value_name, make_tensor_type_proto(input_dtype, past_shape)
-        )
 
-        # Create value info for present_key and present_value outputs
+        # Resolve shapes for present_key and present_value outputs
         present_shape = self._make_present_shape(input_shape, present_seq_len)
-        present_key_info = make_value_info(
-            present_key_name, make_tensor_type_proto(input_dtype, present_shape)
-        )
-        present_value_info = make_value_info(
-            present_value_name,
-            make_tensor_type_proto(input_dtype, present_shape),
-        )
 
-        # Add past_key and past_value as graph inputs
-        graph.input.append(past_key_info)
-        graph.inputs[past_key_name] = len(graph.input) - 1
-        graph.input.append(past_value_info)
-        graph.inputs[past_value_name] = len(graph.input) - 1
-
-        # Add present_key and present_value as graph outputs
-        graph.output.append(present_key_info)
-        graph.outputs[present_key_name] = len(graph.output) - 1
-        graph.output.append(present_value_info)
-        graph.outputs[present_value_name] = len(graph.output) - 1
-
-        # Extend node inputs to include past_key and past_value
-        node.input.append(past_key_name)
-        node.input.append(past_value_name)
-
-        # Extend node outputs to include present_key and present_value
-        node.output.append(present_key_name)
-        node.output.append(present_value_name)
-
-        # Update graph edges
-        graph._node_to_out[node.name] = node.output
-        for output_name in node.output:
-            graph._out_to_node[output_name] = node.name
-
-        # Add value info for new outputs
+        # Register tensor metadata first so set_input/set_output can resolve
+        # dtype/shape.
+        graph.set_value_info(past_key_name, past_shape, input_dtype)
+        graph.set_value_info(past_value_name, past_shape, input_dtype)
         graph.set_value_info(present_key_name, present_shape, input_dtype)
         graph.set_value_info(present_value_name, present_shape, input_dtype)
+
+        # Fill optional positions by spec: [Q, K, V, attn_mask, past_key, past_value].
+        while len(node.input) < 6:
+            node.input.append("")
+        node.input[4] = past_key_name
+        node.input[5] = past_value_name
+
+        # Fill optional output positions by spec: [Y, present_key, present_value].
+        while len(node.output) < 3:
+            node.output.append("")
+        node.output[1] = present_key_name
+        node.output[2] = present_value_name
+
+        # Expose new tensors through public graph I/O APIs.
+        graph.set_input(node, past_key_name)
+        graph.set_input(node, past_value_name)
+        graph.set_output(node, present_key_name)
+        graph.set_output(node, present_value_name)
 
     def _make_past_shape(
         self, input_shape: list[int | str] | None, past_seq_len: int | str

@@ -19,6 +19,9 @@ from onnx.defs import OpSchema
 
 from .. import TRT_IR_DOMAIN
 
+_T = "T", ["tensor(float16)", "tensor(bfloat16)", "tensor(float)"]
+_T_KV = "T_KV", ["tensor(float16)", "tensor(float8e4m3fn)"]
+
 # Define ONNX OpSchema for AttentionPlugin
 attention_plugin_schema = OpSchema(
     name="AttentionPlugin",
@@ -29,22 +32,22 @@ attention_plugin_schema = OpSchema(
         OpSchema.FormalParameter(
             name="q",
             description="Query tensor",
-            type_str="T",
+            type_str=_T[0],
         ),
         OpSchema.FormalParameter(
             name="k",
             description="Key tensor",
-            type_str="T",
+            type_str=_T[0],
         ),
         OpSchema.FormalParameter(
             name="v",
             description="Value tensor",
-            type_str="T",
+            type_str=_T[0],
         ),
         OpSchema.FormalParameter(
             name="past_key_value",
             description="KV cache tensor",
-            type_str="T_KV",
+            type_str=_T_KV[0],
         ),
         OpSchema.FormalParameter(
             name="context_lengths",
@@ -89,7 +92,7 @@ attention_plugin_schema = OpSchema(
         OpSchema.FormalParameter(
             name="attn_output",
             description="Attention output tensor",
-            type_str="T",
+            type_str=_T[0],
         ),
         OpSchema.FormalParameter(
             name="present_key_value",
@@ -97,12 +100,12 @@ attention_plugin_schema = OpSchema(
                 "Updated KV cache tensor with dynamic shape "
                 "[batch_size, 2, num_kv_heads, present_kv_cache_len, head_size]"
             ),
-            type_str="T_KV",
+            type_str=_T_KV[0],
         ),
     ],
     type_constraints=[
-        ("T", ["tensor(float16)"], "Input Q/K/V data type."),
-        ("T_KV", ["tensor(float16)", "tensor(float8e4m3fn)"], "KV cache data type."),
+        (*_T, "Input Q/K/V data type."),
+        (*_T_KV, "KV cache data type."),
     ],
     attributes=[
         OpSchema.Attribute(
@@ -152,6 +155,7 @@ onnx.defs.register_schema(attention_plugin_schema)
 
 def from_onnx_attention(
     op: onnx.NodeProto,
+    head_size: int,
     *,
     enable_tree_attention: int = 0,
     enable_fp8_kv_cache: int = 0,
@@ -188,6 +192,7 @@ def from_onnx_attention(
 
     Args:
         op: The ONNX Attention node to convert.
+        head_size: Required attention head size provided by caller.
         enable_tree_attention: Whether to enable tree attention (0=false, 1=true).
             Does not exist in standard ONNX Attention - use as kwarg.
         enable_fp8_kv_cache: Whether to use FP8 KV cache (0=false, 1=true).
@@ -235,10 +240,13 @@ def from_onnx_attention(
     plugin_op.input.append(attention_pos_id)
     plugin_op.input.append(k_v_scale_quant_orig)
 
-    # Extract attributes from ONNX Attention
-    num_q_heads = _get_int_attribute(op, "num_heads", 0)
+    # Extract attributes from ONNX Attention (spec: q_num_heads, kv_num_heads)
+    num_q_heads = _get_int_attribute(op, "q_num_heads", 0)
     num_kv_heads = _get_int_attribute(op, "kv_num_heads", num_q_heads)
-    head_size = _get_int_attribute(op, "head_size", 0)
+    if head_size <= 0:
+        raise ValueError(
+            "head_size must be a positive integer for AttentionPlugin conversion."
+        )
 
     # Set required attributes on plugin op
     num_heads_attr = onnx.AttributeProto()
@@ -256,7 +264,7 @@ def from_onnx_attention(
     head_size_attr = onnx.AttributeProto()
     head_size_attr.name = "head_size"
     head_size_attr.type = onnx.AttributeProto.INT
-    head_size_attr.i = head_size
+    head_size_attr.i = int(head_size)
     plugin_op.attribute.append(head_size_attr)
 
     enable_tree_attr = onnx.AttributeProto()

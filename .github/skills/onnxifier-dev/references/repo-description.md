@@ -64,10 +64,35 @@ through a registry-driven pass pipeline.
 ## Common Commands
 
 - Install base package: `uv sync`
-- Install test dependencies: `uv sync --extra=test`
-- Run one pass test: `uv run --extra=test pytest tests/passes/test_fold_constant.py -q -s`
-- Run all pass tests: `uv run --extra=test pytest tests/passes -q -s`
-- Type check: `uv run --extra=test pyright onnxifier`
+- Install test dependencies: `uv sync --dev`
+- Run one pass test: `uv run --dev pytest tests/passes/test_fold_constant.py -q -s`
+- Run all pass tests: `uv run --dev pytest tests/passes -q -s`
+- Type check: `uv run --group dev pyright onnxifier`
+- Ruff style check: `uv run --group dev ruff check onnxifier tests`
+
+## Practical How-To
+
+### Query ONNX Operator Docs
+
+- ONNX operator docs URL pattern:
+  `https://onnx.ai/onnx/operators/onnx__<OpName>.html`
+- Example: `https://onnx.ai/onnx/operators/onnx__MatMul.html`
+- Validate pass assumptions against official operator contracts (inputs, outputs,
+  attributes, shape inference notes) before implementing rewrites.
+
+### Pass Folder Selection Guide
+
+- `onnxifier/passes/fusion/`: fuse multi-op patterns into fewer ops.
+- `onnxifier/passes/fission/`: decompose a complex op into simpler ops.
+- `onnxifier/passes/swap/`: replace equivalent implementation patterns.
+- `onnxifier/passes/canonicalization/`: normalize representation to canonical form.
+- `onnxifier/passes/quantize/`: quantization-related transforms.
+- `onnxifier/passes/version_converter/`: opset/version migration transforms.
+- `onnxifier/passes/globals/`: whole-graph cleanup and global transforms.
+- `onnxifier/passes/experiments/`: experimental, not-yet-stable passes.
+
+Rule of thumb: choose the folder by primary transformation intent, not by incidental
+implementation details.
 
 ## Editing Heuristics
 

@@ -84,7 +84,7 @@ profile = "black"
 skip_glob = []
 
 [tool.pylint."MAIN"]
-ignore-paths = []
+ignore-paths = ["tests"]
 
 [tool.pylint."MESSAGES CONTROL"]
 disable = [
@@ -127,5 +127,4 @@ dev = [
     "pytest",
     "pytest-cov",
     "torch",
-    "pytest>=9.0.3",
 ]

@@ -59,7 +59,7 @@ class AvgPoolToConvRewriter(Rewriter):
         kernel_shape = [int(k) for k in kernel_shape_attr]  # type: ignore
         spatial_rank = len(kernel_shape)
 
-        strides_attr = self.get_attribute(node, "strides", None)
+        strides_attr = self.get_attribute(node, "strides")
         if isinstance(strides_attr, list) and len(strides_attr) == spatial_rank:
             validated_strides: list[int] = []
             for s in strides_attr:
@@ -72,7 +72,7 @@ class AvgPoolToConvRewriter(Rewriter):
         else:
             strides = [1] * spatial_rank
 
-        pads_attr = self.get_attribute(node, "pads", None)
+        pads_attr = self.get_attribute(node, "pads")
         if isinstance(pads_attr, list) and len(pads_attr) == 2 * spatial_rank:
             validated_pads: list[int] = []
             for p in pads_attr:

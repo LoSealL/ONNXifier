@@ -34,9 +34,9 @@ class AttentionFillHeadsAndDimRewriter(Rewriter):
     and will overwrite existing values if they disagree with inference:
     - q_num_heads
     - kv_num_heads
-    - scale (1 / sqrt(head_size))
 
     It also materializes default-valued attributes defined by ONNX spec:
+    - scale (1 / sqrt(head_size))
     - is_causal = 0
     - qk_matmul_output_mode = 0
     - softcap = 0.0
