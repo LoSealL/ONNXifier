@@ -44,9 +44,13 @@ class ConstantOfShapeRewriter(Rewriter):
         assert isinstance(value, np.ndarray)
         assert len(value) == 1
         value = value[0]
-        const_node = make_constant(
-            node.name + "/const", np.zeros(shape, dtype=value.dtype) + value
-        )
+        try:
+            const_node = make_constant(
+                node.name + "/const", np.zeros(shape, dtype=value.dtype) + value
+            )
+        except (TypeError, ValueError):
+            # shape may be a dynamic axis
+            return
         const_node.output[0] = node.output[0]
         self -= node
         self += const_node

@@ -58,6 +58,40 @@ and PassManager invoke passes, or updating tests around ONNX graph behavior.
 - Broader pass suite: pytest tests/passes -q -s
 - Type checking if relevant: pyright onnxifier
 
+## Practical Guides
+
+### Query ONNX Op Documentation
+
+- Use the ONNX operator docs URL pattern:
+   `https://onnx.ai/onnx/operators/onnx__<OpName>.html`
+- Example: `If` -> `https://onnx.ai/onnx/operators/onnx__If.html`
+- For non-ONNX source IR semantics (for example OpenVINO ops), consult domain docs,
+   then map behavior to ONNX operator definitions before implementing passes.
+
+### Coding Style Check (Ruff)
+
+- Run style checks with project dependency groups:
+   `uv run --group dev ruff check onnxifier tests`
+- Auto-fix safe style issues when needed:
+   `uv run --group dev ruff check onnxifier tests --fix`
+- Current Ruff selection comes from `pyproject.toml`:
+   `E`, `F`, `UP`, `I` with line length `88`.
+
+### Decide Which Pass Folder To Use
+
+- Place the pass in the most specific category under `onnxifier/passes/`.
+- Use this decision guide:
+   - `fusion/`: multiple ops -> fewer ops (pattern fusion)
+   - `fission/`: one op -> multiple ops (decomposition)
+   - `swap/`: equivalent replacement pattern (A -> B)
+   - `canonicalization/`: normalize attributes/types/forms to canonical ONNX style
+   - `quantize/`: quantization/dequantization related transforms
+   - `version_converter/`: opset/version compatibility transforms
+   - `globals/`: whole-graph cleanup/analysis passes
+   - `experiments/`: unstable or exploratory passes
+- If uncertain between two folders, choose by dominant intent (semantic transform type),
+   then add a focused regression test under `tests/passes/`.
+
 ## Repository Notes
 
 See [repo description](./references/repo-description.md) for:

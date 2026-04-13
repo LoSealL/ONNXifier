@@ -42,11 +42,11 @@ def save_external_data(graph: OnnxGraph, external_data: str = "."):
     """Save tensors as external data in a specified directory.
 
     Args:
-        external_data_dir (str): Directory where external data files will be saved.
+        external_data (str): Directory or file where external data files will be saved.
 
     Example:
 
-        onnxifier model.onnx -a save_external_data --external_data_dir="."
+        onnxifier model.onnx -a save_external_data --external_data="."
     """
 
     if Path(external_data).is_dir():

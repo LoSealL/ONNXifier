@@ -14,6 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from typing import Literal
+
 import networkx as nx
 from onnx import NodeProto
 
@@ -38,7 +40,13 @@ class FoldConstantPass(Rewriter):
     def _is_constant_or_qdq(self, node):
         return node.op_type in {"Constant", "DequantizeLinear", "QuantizeLinear"}
 
-    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
+    def rewrite(  # pylint: disable=arguments-differ
+        self,
+        graph: OnnxGraph,
+        nodes: list[NodeProto],
+        *,
+        runtime: Literal["auto", "openvino", "onnxruntime", "onnx"] = "auto",
+    ):
         # skip if all nodes are Constant
         if all(self._is_constant_or_qdq(node) for node in nodes):
             return
@@ -57,7 +65,7 @@ class FoldConstantPass(Rewriter):
             if set(node.output).issubset(outputs_eval):
                 nodes.remove(node)
                 outputs_eval.difference_update(node.output)
-        evaluator = Evaluator(subonnx.model)
+        evaluator = Evaluator(subonnx.model, backend=runtime)
         outputs = evaluator(list(outputs_eval), {})
         for output_name, out_value in zip(outputs_eval, outputs):
             constants.append(make_constant(output_name, out_value))

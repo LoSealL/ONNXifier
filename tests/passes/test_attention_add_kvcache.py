@@ -34,11 +34,11 @@ def _make_model_with_opset(opset_version: int):
 
     def make_graph_with_attention():
         # Create an attention node without KV cache
-        # Attention inputs: input, weight, bias (3 inputs)
-        # Attention outputs: output (1 output)
+        # Attention inputs (by position): q, k, v
+        # Attention outputs: Y
         attention = make_node(
             "Attention",
-            ["input", "weight", "bias"],
+            ["q", "k", "v"],
             ["output"],
             name="attention",
         )
@@ -47,21 +47,17 @@ def _make_model_with_opset(opset_version: int):
             "graph",
             [
                 make_value_info(
-                    "input", make_tensor_type_proto(1, ["batch", "seq", "hidden"])
+                    "q", make_tensor_type_proto(1, ["batch", "seq", "hidden"])
                 ),
-                make_value_info(
-                    "weight", make_tensor_type_proto(1, ["hidden", "hidden"])
-                ),
-                make_value_info("bias", make_tensor_type_proto(1, ["hidden"])),
+                make_value_info("k", make_tensor_type_proto(1, ["hidden", "hidden"])),
+                make_value_info("v", make_tensor_type_proto(1, ["hidden"])),
             ],
             [make_value_info("output", make_tensor_type_proto(1, [1, 384, 768]))],
             [
                 numpy_helper.from_array(
-                    np.random.randn(768, 768).astype(np.float32), "weight"
+                    np.random.randn(768, 768).astype(np.float32), "k"
                 ),
-                numpy_helper.from_array(
-                    np.random.randn(768).astype(np.float32), "bias"
-                ),
+                numpy_helper.from_array(np.random.randn(768).astype(np.float32), "v"),
             ],
         )
         return graph
@@ -75,11 +71,12 @@ def _make_model_with_kv_cache():
     """Create a model with attention that already has KV cache."""
 
     def make_graph_with_attention_kv():
-        # Attention with KV cache: input, weight, bias, past_key, past_value
-        # Outputs: output, present_key, present_value
+        # Attention with KV cache uses optional input positions:
+        # [Q, K, V, attn_mask, past_key, past_value]
+        # with empty attn_mask placeholder when no mask is provided.
         attention = make_node(
             "Attention",
-            ["input", "weight", "bias", "past_key", "past_value"],
+            ["q", "k", "v", "", "past_key", "past_value"],
             ["output", "present_key", "present_value"],
             name="attention",
         )
@@ -88,12 +85,10 @@ def _make_model_with_kv_cache():
             "graph",
             [
                 make_value_info(
-                    "input", make_tensor_type_proto(1, ["batch", "seq", "hidden"])
+                    "q", make_tensor_type_proto(1, ["batch", "seq", "hidden"])
                 ),
-                make_value_info(
-                    "weight", make_tensor_type_proto(1, ["hidden", "hidden"])
-                ),
-                make_value_info("bias", make_tensor_type_proto(1, ["hidden"])),
+                make_value_info("k", make_tensor_type_proto(1, ["hidden", "hidden"])),
+                make_value_info("v", make_tensor_type_proto(1, ["hidden"])),
                 make_value_info(
                     "past_key",
                     make_tensor_type_proto(1, ["batch", "heads", "past_seq", "dim"]),
@@ -116,11 +111,9 @@ def _make_model_with_kv_cache():
             ],
             [
                 numpy_helper.from_array(
-                    np.random.randn(768, 768).astype(np.float32), "weight"
+                    np.random.randn(768, 768).astype(np.float32), "k"
                 ),
-                numpy_helper.from_array(
-                    np.random.randn(768).astype(np.float32), "bias"
-                ),
+                numpy_helper.from_array(np.random.randn(768).astype(np.float32), "v"),
             ],
         )
         return graph
@@ -163,7 +156,7 @@ def _make_model_with_4d_input():
     def make_graph_with_4d_input():
         attention = make_node(
             "Attention",
-            ["input", "weight", "bias"],
+            ["q", "k", "v"],
             ["output"],
             name="attention",
         )
@@ -172,13 +165,11 @@ def _make_model_with_4d_input():
             "graph",
             [
                 make_value_info(
-                    "input",
+                    "q",
                     make_tensor_type_proto(1, ["batch", "heads", "seq", "dim"]),
                 ),
-                make_value_info(
-                    "weight", make_tensor_type_proto(1, ["hidden", "hidden"])
-                ),
-                make_value_info("bias", make_tensor_type_proto(1, ["hidden"])),
+                make_value_info("k", make_tensor_type_proto(1, ["hidden", "hidden"])),
+                make_value_info("v", make_tensor_type_proto(1, ["hidden"])),
             ],
             [
                 make_value_info(
@@ -188,11 +179,9 @@ def _make_model_with_4d_input():
             ],
             [
                 numpy_helper.from_array(
-                    np.random.randn(768, 768).astype(np.float32), "weight"
+                    np.random.randn(768, 768).astype(np.float32), "k"
                 ),
-                numpy_helper.from_array(
-                    np.random.randn(768).astype(np.float32), "bias"
-                ),
+                numpy_helper.from_array(np.random.randn(768).astype(np.float32), "v"),
             ],
         )
         return graph
@@ -208,7 +197,7 @@ def _make_model_with_unknown_input_shape():
     def make_graph_with_unknown_shape():
         attention = make_node(
             "Attention",
-            ["input", "weight", "bias"],
+            ["q", "k", "v"],
             ["output"],
             name="attention",
         )
@@ -216,20 +205,16 @@ def _make_model_with_unknown_input_shape():
             [attention],
             "graph",
             [
-                make_value_info("input", make_tensor_type_proto(1, None)),
-                make_value_info(
-                    "weight", make_tensor_type_proto(1, ["hidden", "hidden"])
-                ),
-                make_value_info("bias", make_tensor_type_proto(1, ["hidden"])),
+                make_value_info("q", make_tensor_type_proto(1, None)),
+                make_value_info("k", make_tensor_type_proto(1, ["hidden", "hidden"])),
+                make_value_info("v", make_tensor_type_proto(1, ["hidden"])),
             ],
             [make_value_info("output", make_tensor_type_proto(1, None))],
             [
                 numpy_helper.from_array(
-                    np.random.randn(768, 768).astype(np.float32), "weight"
+                    np.random.randn(768, 768).astype(np.float32), "k"
                 ),
-                numpy_helper.from_array(
-                    np.random.randn(768).astype(np.float32), "bias"
-                ),
+                numpy_helper.from_array(np.random.randn(768).astype(np.float32), "v"),
             ],
         )
         return graph
@@ -261,11 +246,12 @@ class TestAttentionAddKVCache:
         assert any("present_key" in name for name in output_names)
         assert any("present_value" in name for name in output_names)
 
-        # Check the attention node has 5 inputs
+        # Check the attention node has 6 inputs with optional attn_mask slot kept empty
         attention_node = graph.nodes["attention"]["pb"]
-        assert len(attention_node.input) == 5
-        assert attention_node.input[3] == "attention/past_key"
-        assert attention_node.input[4] == "attention/past_value"
+        assert len(attention_node.input) == 6
+        assert attention_node.input[3] == ""
+        assert attention_node.input[4] == "attention/past_key"
+        assert attention_node.input[5] == "attention/past_value"
 
         # Check the attention node has 3 outputs
         assert len(attention_node.output) == 3
@@ -402,7 +388,7 @@ class TestAttentionAddKVCache:
         graph = OnnxGraph(model)
         assert graph.opset_version == 23
 
-        rewriter = AttentionAddKVCacheRewriter(sequence_length=128)
+        rewriter = AttentionAddKVCacheRewriter()
         graph = rewriter(graph)
 
         # Check that the rewriter was applied
@@ -517,7 +503,7 @@ class TestAttentionAddKVCache:
         assert len(onnx_model.graph.node) == 1
 
         attention_node = onnx_model.graph.node[0]
-        assert len(attention_node.input) == 5
+        assert len(attention_node.input) == 6
         assert len(attention_node.output) == 3
 
     def test_multiple_attention_nodes(self):
@@ -526,13 +512,13 @@ class TestAttentionAddKVCache:
         def make_graph_with_two_attention():
             attention1 = make_node(
                 "Attention",
-                ["input1", "weight1", "bias1"],
+                ["q1", "k1", "v1"],
                 ["output1"],
                 name="attention1",
             )
             attention2 = make_node(
                 "Attention",
-                ["input2", "weight2", "bias2"],
+                ["q2", "k2", "v2"],
                 ["output2"],
                 name="attention2",
             )
@@ -541,21 +527,21 @@ class TestAttentionAddKVCache:
                 "graph",
                 [
                     make_value_info(
-                        "input1",
+                        "q1",
                         make_tensor_type_proto(1, ["batch", "seq", "hidden"]),
                     ),
                     make_value_info(
-                        "weight1", make_tensor_type_proto(1, ["hidden", "hidden"])
+                        "k1", make_tensor_type_proto(1, ["hidden", "hidden"])
                     ),
-                    make_value_info("bias1", make_tensor_type_proto(1, ["hidden"])),
+                    make_value_info("v1", make_tensor_type_proto(1, ["hidden"])),
                     make_value_info(
-                        "input2",
+                        "q2",
                         make_tensor_type_proto(1, ["batch", "seq", "hidden"]),
                     ),
                     make_value_info(
-                        "weight2", make_tensor_type_proto(1, ["hidden", "hidden"])
+                        "k2", make_tensor_type_proto(1, ["hidden", "hidden"])
                     ),
-                    make_value_info("bias2", make_tensor_type_proto(1, ["hidden"])),
+                    make_value_info("v2", make_tensor_type_proto(1, ["hidden"])),
                 ],
                 [
                     make_value_info(
@@ -567,16 +553,16 @@ class TestAttentionAddKVCache:
                 ],
                 [
                     numpy_helper.from_array(
-                        np.random.randn(768, 768).astype(np.float32), "weight1"
+                        np.random.randn(768, 768).astype(np.float32), "k1"
                     ),
                     numpy_helper.from_array(
-                        np.random.randn(768).astype(np.float32), "bias1"
+                        np.random.randn(768).astype(np.float32), "v1"
                     ),
                     numpy_helper.from_array(
-                        np.random.randn(768, 768).astype(np.float32), "weight2"
+                        np.random.randn(768, 768).astype(np.float32), "k2"
                     ),
                     numpy_helper.from_array(
-                        np.random.randn(768).astype(np.float32), "bias2"
+                        np.random.randn(768).astype(np.float32), "v2"
                     ),
                 ],
             )
@@ -594,25 +580,24 @@ class TestAttentionAddKVCache:
 
         # Both attention nodes should have KV cache added
         attention1 = graph.nodes["attention1"]["pb"]
-        assert len(attention1.input) == 5
+        assert len(attention1.input) == 6
         assert len(attention1.output) == 3
 
         attention2 = graph.nodes["attention2"]["pb"]
-        assert len(attention2.input) == 5
+        assert len(attention2.input) == 6
         assert len(attention2.output) == 3
 
     def test_empty_past_key_value(self):
         """Test attention with empty past_key and past_value inputs.
 
-        When past_key/past_value are empty strings (optional inputs not provided),
-        the rewriter adds new KV cache inputs because empty strings are falsy
-        in the has_kv_cache check.
+        When optional placeholders exist, the rewriter fills past_key/past_value at
+        canonical positions 4 and 5.
         """
 
         def make_graph_with_empty_past():
             attention = make_node(
                 "Attention",
-                ["input", "weight", "bias", "", ""],
+                ["q", "k", "v", "", "", ""],
                 ["output"],
                 name="attention",
             )
@@ -621,21 +606,21 @@ class TestAttentionAddKVCache:
                 "graph",
                 [
                     make_value_info(
-                        "input",
+                        "q",
                         make_tensor_type_proto(1, ["batch", "seq", "hidden"]),
                     ),
                     make_value_info(
-                        "weight", make_tensor_type_proto(1, ["hidden", "hidden"])
+                        "k", make_tensor_type_proto(1, ["hidden", "hidden"])
                     ),
-                    make_value_info("bias", make_tensor_type_proto(1, ["hidden"])),
+                    make_value_info("v", make_tensor_type_proto(1, ["hidden"])),
                 ],
                 [make_value_info("output", make_tensor_type_proto(1, [1, 384, 768]))],
                 [
                     numpy_helper.from_array(
-                        np.random.randn(768, 768).astype(np.float32), "weight"
+                        np.random.randn(768, 768).astype(np.float32), "k"
                     ),
                     numpy_helper.from_array(
-                        np.random.randn(768).astype(np.float32), "bias"
+                        np.random.randn(768).astype(np.float32), "v"
                     ),
                 ],
             )
@@ -652,6 +637,6 @@ class TestAttentionAddKVCache:
         graph = pm.optimize(graph)
 
         attention = graph.nodes["attention"]["pb"]
-        assert len(attention.input) == 7
-        assert attention.input[5] == "attention/past_key"
-        assert attention.input[6] == "attention/past_value"
+        assert len(attention.input) == 6
+        assert attention.input[4] == "attention/past_key"
+        assert attention.input[5] == "attention/past_value"

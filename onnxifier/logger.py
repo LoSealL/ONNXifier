@@ -35,34 +35,34 @@ def _default_level_from_env():
     return logging.INFO
 
 
-def trace(msg: str):
+def trace(msg: str, *args):
     """Logging trace message"""
-    _LOG.log(1, msg)
+    _LOG.log(1, msg, *args)
 
 
-def debug(msg: str):
+def debug(msg: str, *args):
     """Logging debug message"""
-    _LOG.debug(msg)
+    _LOG.debug(msg, *args)
 
 
-def info(msg: str):
+def info(msg: str, *args):
     """Logging informative message"""
-    _LOG.info(msg)
+    _LOG.info(msg, *args)
 
 
-def warning(msg: str):
+def warning(msg: str, *args):
     """Logging warning message"""
-    _LOG.warning(msg)
+    _LOG.warning(msg, *args)
 
 
-def error(msg: str):
+def error(msg: str, *args):
     """Logging error message"""
-    _LOG.error(msg)
+    _LOG.error(msg, *args)
 
 
-def fatal(msg: str):
+def fatal(msg: str, *args):
     """Logging critical(fatal) message"""
-    _LOG.critical(msg)
+    _LOG.critical(msg, *args)
 
 
 def set_level(level: str):

@@ -347,7 +347,7 @@ class OnnxGraph(nx.DiGraph):
         if name in self.inputs or name in self.outputs:
             value_infos = list(chain(self.input, self.output))
         else:
-            value_infos = self._value_info
+            value_infos = list(chain(self._value_info, self._value_info_update))
         for value_info in value_infos:
             if value_info.name == name:
                 if value_info.type.HasField("tensor_type"):
@@ -650,7 +650,7 @@ class OnnxGraph(nx.DiGraph):
         elif location.is_absolute():
             raise ValueError(f"absolute location {location} must be relative to cwd.")
         # recreate the file
-        with open(self._external_base / location, "wb"):
+        with open(Path(self._external_base) / location, "wb"):
             pass
         for tensor in self._get_all_tensors():
             if tensor.HasField("raw_data") and len(tensor.raw_data) >= size_threshold:
