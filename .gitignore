@@ -14,3 +14,4 @@ tests/models/
 
 uv.lock
 .coverage
+*.onnx

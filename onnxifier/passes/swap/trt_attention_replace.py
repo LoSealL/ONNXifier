@@ -36,7 +36,7 @@ _INPUT_NAMES = {
     "kvcache_start_index": "kvcache_start_index",
 }
 
-_INPUT_SHAPES = {
+_INPUT_SHAPES: dict[str, list[str | int]] = {
     "context_lengths": ["batch_size"],
     "rope_rotary_cos_sin": ["max_seq_len", "head_dim_2"],
     "kvcache_start_index": ["batch_size"],
@@ -246,14 +246,24 @@ class TRTAttentionRewriter(Rewriter):
 
     def _add_shared_inputs(self, graph: OnnxGraph):
         """Add shared inputs to the graph for all attention nodes."""
+        batch_size = 0  # infer batch size
+        for output in graph.outputs:
+            batch_size = graph.tensor_shape(output)[0]
+            if isinstance(batch_size, str):
+                batch_size = 0
+            if batch_size > 0:
+                break
         for key, name in _INPUT_NAMES.items():
             if name in graph.inputs:
                 continue
+            shape = _INPUT_SHAPES[key].copy()
+            if shape[0] == "batch_size" and batch_size > 0:
+                shape[0] = batch_size
             graph_input = make_value_info(
                 name,
                 make_tensor_type_proto(
                     _elem_type_from_schema(attention_plugin_schema, key),
-                    _INPUT_SHAPES[key],
+                    shape,
                 ),
             )
             graph.input.append(graph_input)
