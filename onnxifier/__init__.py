@@ -15,7 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-__version__ = "2.0.4"
+__version__ = "2.1.0"
 
 import os
 from collections.abc import Sequence
@@ -144,8 +144,8 @@ __all__ = ["convert", "convert_graph", "PassManager", "OnnxGraph"]
 # make NodeProto hashable using node name
 onnx.NodeProto.__hash__ = lambda self: hash(self.name)  # type: ignore
 
-ONNXIFIER_IR_VERSION = onnx.IR_VERSION_2023_5_5
+ONNXIFIER_IR_VERSION = onnx.IR_VERSION_2024_3_25
 """Currently used IR version, since most runtime supports up to this version."""
 
-ONNXIFIER_OPSET = make_operatorsetid("", 19)
+ONNXIFIER_OPSET = make_operatorsetid("", 20)
 """Currently used opset version, since most runtime supports up to this version."""

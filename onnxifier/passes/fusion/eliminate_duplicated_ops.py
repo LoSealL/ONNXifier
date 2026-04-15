@@ -131,9 +131,7 @@ class EliminateDuplicatedTranspose(Rewriter):
         # we can simply bridge the original input and final output
         # with a single Reshape for the target shape.
         shape_name = f"{node1.name}/targetShape"
-        shape_const = make_constant(
-            shape_name, np.array([output_shape], dtype=np.int64)
-        )
+        shape_const = make_constant(shape_name, np.array(output_shape, dtype=np.int64))
         reshape_node = make_node(
             "Reshape",
             inputs=[input_name, shape_const.output[0]],
