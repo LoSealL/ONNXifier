@@ -23,6 +23,7 @@ from onnx.helper import (
     make_model,
     make_node,
     make_operatorsetid,
+    make_tensor,
     make_tensor_value_info,
 )
 
@@ -75,6 +76,66 @@ def _make_vit_attention_graph(
         [attention_node],
         "vit_attention_graph",
         [q_info, k_info, v_info],
+        [output_info],
+    )
+
+    model = make_model(
+        graph,
+        ir_version=ONNXIFIER_IR_VERSION,
+        opset_imports=[make_operatorsetid("", opset)],
+    )
+    onnx.checker.check_model(model)
+    return OnnxGraph(model)
+
+
+def _make_qwen_like_vit_attention_graph(
+    seq_len: int = 16,
+    hidden_size: int = 1024,
+    num_heads: int = 16,
+    opset: int = 24,
+) -> OnnxGraph:
+    """Create a qwen-like graph with model input shape [seq_len, hidden_size]."""
+    input_info = make_tensor_value_info(
+        "input", TensorProto.FLOAT16, [seq_len, hidden_size]
+    )
+
+    reshape_shape = make_node(
+        "Constant",
+        [],
+        ["reshape_shape"],
+        name="reshape_shape",
+        value=make_tensor(
+            "reshape_shape_value",
+            TensorProto.INT64,
+            [3],
+            [1, seq_len, hidden_size],
+        ),
+    )
+
+    reshape_to_attention_input = make_node(
+        "Reshape",
+        ["input", "reshape_shape"],
+        ["qkv"],
+        name="reshape_to_attention_input",
+    )
+
+    attention_node = make_node(
+        "Attention",
+        ["qkv", "qkv", "qkv"],
+        ["output"],
+        name="vit_attention",
+        q_num_heads=num_heads,
+        kv_num_heads=num_heads,
+    )
+
+    output_info = make_tensor_value_info(
+        "output", TensorProto.FLOAT16, [1, seq_len, hidden_size]
+    )
+
+    graph = make_graph(
+        [reshape_shape, reshape_to_attention_input, attention_node],
+        "qwen_like_vit_attention_graph",
+        [input_info],
         [output_info],
     )
 
@@ -285,6 +346,45 @@ def test_trt_vit_attention_replace_input_mapping():
             # Should have exactly 1 output
             assert len(node.output) == 1
             break
+
+
+def test_trt_vit_attention_replace_bake_seqlens_qwen_like_input():
+    """Test baking cu_seqlens/max_seqlen_carrier from qwen-like [16, 1024] input."""
+    graph = _make_qwen_like_vit_attention_graph(seq_len=16, hidden_size=1024)
+
+    graph = PassManager(["trt_vit_attention_replace"]).optimize(graph, strict=True)
+
+    plugin_node = None
+    for n in graph:
+        node = graph.nodes[n]["pb"]
+        if node.op_type == "ViTAttentionPlugin":
+            plugin_node = node
+            break
+
+    assert plugin_node is not None
+    assert plugin_node.input[3] == "cu_seqlens_output_0"
+    assert plugin_node.input[4] == "max_seqlen_carrier_output_0"
+
+    input_names = [inp.name for inp in graph.input]
+    assert "cu_seqlens" not in input_names
+    assert "max_seqlen_carrier" not in input_names
+
+    constant_values = {}
+    constant_types = {}
+    for n in graph:
+        node = graph.nodes[n]["pb"]
+        if node.op_type != "Constant":
+            continue
+        if node.name not in {"cu_seqlens", "max_seqlen_carrier"}:
+            continue
+        value_attr = next(attr for attr in node.attribute if attr.name == "value")
+        constant_values[node.name] = onnx.numpy_helper.to_array(value_attr.t).tolist()
+        constant_types[node.name] = value_attr.t.data_type
+
+    assert constant_values["cu_seqlens"] == [0, 16]
+    assert constant_values["max_seqlen_carrier"] == [16]
+    assert constant_types["cu_seqlens"] == TensorProto.INT32
+    assert constant_types["max_seqlen_carrier"] == TensorProto.INT32
 
 
 if __name__ == "__main__":
