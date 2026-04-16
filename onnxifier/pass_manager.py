@@ -23,7 +23,7 @@ from itertools import chain
 from typing import Any
 
 import networkx as nx
-from onnx import NodeProto, ValueInfoProto
+from onnx import FunctionProto, NodeProto, ValueInfoProto
 from onnx.helper import make_function, make_value_info
 from tabulate import tabulate
 from termcolor import colored
@@ -57,6 +57,10 @@ def _apply_pass(rewriter, g, specify_node_names):
     else:
         g = rewriter(g, _specify_node_names=specify_node_names)
     return g
+
+
+# graph name: (domain, graph, graph callers)
+type _GraphLevel = dict[str, tuple[str, OnnxGraph, list[str]]]
 
 
 class PassManager:
@@ -173,11 +177,11 @@ class PassManager:
             specify_node_names (set[str], optional): Only optimize nodes with these
                 names. Defaults to None.
         """
-        graphs = {"": ("", graph)}  # let "" be the main graph
+        graphs: _GraphLevel = {"": ("", graph, [])}  # let "" be the main graph
         if recursive:
             graphs.update(self._make_subgraph_from_functions(graph))
         for opt in self.activated:
-            for name, (d, g) in graphs.items():
+            for name, (d, g, parents) in graphs.items():
                 try:
                     for deps in self._expand_deps(opt.__DEPS__):
                         if rewriter := PASSES.get(deps):
@@ -194,15 +198,19 @@ class PassManager:
                     debug("\n".join(traceback.format_exception(ex)))
                     if strict:
                         raise
-                graphs[name] = (d, g)
+                graphs[name] = (d, g, parents)
                 if name:
+                    old_func = graphs[""][1].functions[name]
                     function = self._make_function_from_subgraph(name, d, g)
                     graphs[""][1].onnx_add_function(function, force=True)
+                    # sync parent graph caller nodes to match new signature
+                    self._update_parent_graph(parents, old_func, function, graphs)
         return graphs[""][1]
 
     def _make_subgraph_from_functions(self, graph: OnnxGraph):
         users: dict[str, list[NodeProto]] = defaultdict(list)
         iter_order: dict[str, OnnxGraph] = {}  # ordered hashset
+        parents: dict[str, list[str]] = defaultdict(list)  # func -> parent keys
         # graph.functions may not topologically sorted
         bfs: dict[str, None] = OrderedDict()  # used as ordered set
         for n in graph:
@@ -211,6 +219,7 @@ class PassManager:
                 users[node.op_type].append(node)
                 iter_order[node.op_type] = graph
                 bfs[node.op_type] = None
+                parents[node.op_type].append("")  # called from main graph
         while bfs:
             top_key = next(iter(bfs))
             f = graph.functions[top_key]
@@ -219,6 +228,7 @@ class PassManager:
                 if node.op_type in graph.functions:
                     users[node.op_type].append(node)
                     bfs[node.op_type] = None
+                    parents[node.op_type].append(top_key)
                     iter_order[node.op_type] = extract_function(
                         graph,
                         f.node,
@@ -244,7 +254,57 @@ class PassManager:
             )
             for i in chain(model.input, model.output):
                 extended_value_info.append(make_value_info(i.name, i.type))
-            yield name, (f.domain, model)
+            yield name, (f.domain, model, parents[name])
+
+    @staticmethod
+    def _update_parent_graph(
+        parents: list[str],
+        old_func: FunctionProto,
+        new_func: FunctionProto,
+        graphs: "_GraphLevel",
+    ) -> None:
+        """Sync caller nodes in parent graphs after a child function's I/O changes.
+
+        When an optimization pass adds or removes inputs/outputs of a function
+        subgraph, the caller nodes in the parent graph(s) must be updated so
+        that their ``input`` / ``output`` lists stay positionally aligned with
+        the new function signature.
+        """
+        old_inputs = sorted(old_func.input)
+        old_outputs = sorted(old_func.output)
+        new_inputs = sorted(new_func.input)
+        new_outputs = sorted(new_func.output)
+
+        if old_inputs == new_inputs and old_outputs == new_outputs:
+            return  # nothing changed
+        new_value_info = {v.name: v for v in new_func.value_info}
+
+        for parent_key in parents:
+            if parent_key not in graphs:
+                continue
+            _, parent_graph, _ = graphs[parent_key]
+
+            # find caller nodes whose op_type matches the function name
+            for n in list(parent_graph.nodes):
+                caller: NodeProto = parent_graph.nodes[n]["pb"]
+                if caller.op_type != new_func.name or caller.domain != new_func.domain:
+                    continue
+
+                extra_in = set(new_inputs) - set(old_inputs)
+                for i in extra_in:
+                    caller.input.append(i)
+                    parent_graph.set_value_info(i, value_info=new_value_info[i])
+                    # add input to graph
+                    parent_graph.set_input(caller, i)
+                extra_out = set(new_outputs) - set(old_outputs)
+                for o in extra_out:
+                    caller.output.append(o)
+                    parent_graph.set_value_info(o, value_info=new_value_info[o])
+                    # add output to graph
+                    parent_graph.set_output(caller, o)
+
+                # refresh parent graph internal state for this node
+                parent_graph.add_onnx_node(caller)
 
     def _make_function_from_subgraph(self, name: str, domain: str, model: OnnxGraph):
         # pylint: disable=protected-access

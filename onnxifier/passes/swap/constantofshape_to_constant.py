@@ -32,10 +32,12 @@ class ConstantOfShapeRewriter(Rewriter):
     def __init__(self):
         super().__init__(pattern=SingleNodePattern("ConstantOfShape"))
 
-    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
+    def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto], *_, **_kw):
         node = nodes[0]
-        shape = self.get_value(node.input[0])
-        if shape is None:
+        try:
+            # Skip dynamic shape but do not stop other op rewrites
+            shape = self.get_value_or_die(node.input[0])
+        except Exception:  # pylint: disable=broad-except
             debug(f"skip {node.name} since the shape is not constant")
             return
         value = self.get_attribute(node, "value")
