@@ -228,3 +228,210 @@ def test_optimize_with_specify_node_names():
         pm.optimize(g, strict=True, specify_node_names={"foo"})
     # However, specify node name = "baz" matches no nodes
     pm.optimize(g, strict=True, specify_node_names={"baz"})
+
+
+# ---------------------------------------------------------------------------
+# _update_parent_graph: sync parent caller I/O after child function changes
+# ---------------------------------------------------------------------------
+
+
+def _model_with_function_io():
+    """Model where main graph calls function Foo(x, unused) -> (y).
+
+    Foo body: Add(x, unused) -> y   (uses both inputs)
+    The *unused* input is not consumed downstream in the main graph,
+    so an eliminate-unused-input style pass inside Foo could drop it.
+    """
+    # main graph: input x,unused -> Foo -> output y
+    x = onnx.helper.make_tensor_value_info("x", onnx.TensorProto.FLOAT, [1])
+    unused = onnx.helper.make_tensor_value_info("unused", onnx.TensorProto.FLOAT, [1])
+    y = onnx.helper.make_tensor_value_info("y", onnx.TensorProto.FLOAT, [1])
+    caller = onnx.helper.make_node(
+        "Foo", ["x", "unused"], ["y"], name="foo_call", domain="foo"
+    )
+    graph = onnx.helper.make_graph([caller], "main", [x, unused], [y])
+
+    foo_func = onnx.helper.make_function(
+        "foo",
+        "Foo",
+        ["fx", "funused"],
+        ["fy"],
+        [onnx.helper.make_node("Add", ["fx", "funused"], ["fy"], name="add")],
+        [onnx.helper.make_operatorsetid("foo", 1)],
+    )
+
+    model = onnx.helper.make_model(graph, functions=[foo_func])
+    return model
+
+
+def test_update_parent_graph_add_input():
+    """When the child function gains a new input, the parent caller node
+    should get the extra input appended and the parent graph should register
+    it as a graph-level input."""
+    m = _model_with_function_io()
+    g = OnnxGraph(m)
+
+    # A pass that adds a new input to the function body
+    class _AddInputPass(Rewriter):
+        def __init__(self):
+            super().__init__(SingleNodePattern())
+
+        def rewrite(self, graph, nodes):
+            for node in nodes:
+                if node.op_type == "Add":
+                    new_in = "fnew"
+                    node.input.append(new_in)
+                    graph.set_value_info(
+                        new_in, shape=[1], dtype=onnx.TensorProto.FLOAT
+                    )
+                    graph.set_input(node, new_in)
+            return graph
+
+    pm = PassManager([_AddInputPass()])
+    result = pm.optimize(g, recursive=True, strict=True)
+
+    # Caller node in the main graph should now have 3 inputs
+    caller_found = False
+    for n in result:
+        caller = result.nodes[n]["pb"]
+        if caller.op_type == "Foo":
+            caller_found = True
+            assert len(caller.input) == 3
+            assert "fnew" in list(caller.input)
+    assert caller_found
+
+
+def test_update_parent_graph_add_output():
+    """When the child function gains a new output, the caller node should
+    grow its output list and the parent graph should register the new output."""
+    m = _model_with_function_io()
+    g = OnnxGraph(m)
+
+    class _AddOutputPass(Rewriter):
+        """Duplicate every Add node's output as a second output (test-only pass)."""
+
+        def __init__(self):
+            super().__init__(SingleNodePattern())
+
+        def rewrite(self, graph, nodes):
+            for node in nodes:
+                if node.op_type == "Add":
+                    new_out = node.output[0] + "_extra"
+                    node.output.append(new_out)
+                    graph.set_value_info(
+                        new_out, shape=[1], dtype=onnx.TensorProto.FLOAT
+                    )
+                    graph.set_output(node, new_out)
+            return graph
+
+    pm = PassManager([_AddOutputPass()])
+    result = pm.optimize(g, recursive=True, strict=True)
+
+    caller_found = False
+    for n in result:
+        caller = result.nodes[n]["pb"]
+        if caller.op_type == "Foo":
+            caller_found = True
+            assert len(caller.output) == 2
+            assert "fy_extra" in list(caller.output)
+    assert caller_found
+
+
+def test_update_parent_graph_no_change():
+    """When the child function I/O doesn't change, the caller node stays the same."""
+    m = _model_with_function_io()
+    g = OnnxGraph(m)
+
+    # A pass that does nothing
+    pm = PassManager([PassRecurse(debug_info={})])
+    result = pm.optimize(g, recursive=True, strict=True)
+
+    for n in result:
+        caller = result.nodes[n]["pb"]
+        if caller.op_type == "Foo":
+            assert list(caller.input) == ["x", "unused"]
+            assert list(caller.output) == ["y"]
+
+
+# ---------------------------------------------------------------------------
+# _assign_config_to_pass: edge cases
+# ---------------------------------------------------------------------------
+
+
+def test_config_non_dict_warning(caplog):
+    """Config value that is not a dict should emit a warning."""
+    PassManager(["function_in_test"], configs={"function_in_test": "bad_value"})
+    assert "must be a dict" in caplog.text
+
+
+def test_config_index_exceeds_boundary(caplog):
+    """Index that exceeds available pass count should warn."""
+    PassManager(
+        ["function_in_test"],
+        configs={"function_in_test:5": dict(args_x=1, args_y=1)},
+    )
+    assert "exceeds the boundary" in caplog.text
+
+
+# ---------------------------------------------------------------------------
+# Multi-user function: skipped during recursive optimization
+# ---------------------------------------------------------------------------
+
+
+def test_multi_user_function_skipped():
+    """A function called by multiple nodes should be skipped (not optimised)."""
+    m = _empty_model()
+    m.graph.node.append(onnx.helper.make_node("Foo", [], [], name="foo1", domain="foo"))
+    m.graph.node.append(onnx.helper.make_node("Foo", [], [], name="foo2", domain="foo"))
+    m.functions.append(
+        onnx.helper.make_function(
+            "foo",
+            "Foo",
+            [],
+            [],
+            [onnx.helper.make_node("Const", [], ["out"], name="const")],
+            [onnx.helper.make_operatorsetid("foo", 1)],
+        )
+    )
+    g = OnnxGraph(m)
+
+    debug_info = {}
+    pm = PassManager([PassRecurse(debug_info)])
+    pm.optimize(g, recursive=True, strict=True)
+
+    # Both caller nodes are visited in the main graph
+    assert "foo1" in debug_info
+    assert "foo2" in debug_info
+    # But the function body node should NOT be visited (multi-user → skipped)
+    assert "const" not in debug_info
+
+
+def test_print_all(capsys):
+    PassManager.print_all()
+    assert capsys.readouterr().out.strip()
+
+
+def test_print_l1(capsys):
+    PassManager.print_l1()
+    assert capsys.readouterr().out.strip()
+
+
+def test_print_l2(capsys):
+    PassManager.print_l2()
+    assert capsys.readouterr().out.strip()
+
+
+def test_print_l3(capsys):
+    PassManager.print_l3()
+    assert capsys.readouterr().out.strip()
+
+
+def test_print_specific(capsys):
+    PassManager.print("function_in_test")
+    assert "function_in_test" in capsys.readouterr().out
+
+
+def test_repr():
+    pm = PassManager(["function_in_test"])
+    r = repr(pm)
+    assert "function_in_test" in r

@@ -479,29 +479,37 @@ class OnnxGraph(nx.DiGraph):
         self._node_to_out[output_node.name] = output_node.output
 
     def set_value_info(
-        self, name: str, shape: Sequence[int | str], dtype: int | None = None
+        self,
+        name: str,
+        shape: Sequence[int | str] = (),
+        dtype: int = onnx.TensorProto.UNDEFINED,
+        value_info: onnx.ValueInfoProto | None = None,
     ):
         """Overwrite the value info of a tensor.
 
         Args:
             name (str): the name of the tensor.
             shape (List[int | str]): the shape of the tensor.
-            dtype (int, optional): the data type of the tensor. Defaults to None.
+            dtype (int, optional): the data type of the tensor. Defaults to UNDEFINED.
+            value_info (onnx.ValueInfoProto, optional): the value info proto to set.
+                If present, ignore shape and dtype. Defaults to None.
         """
+        if value_info is None:
+            value_info = make_tensor_value_info(name, dtype, shape)
         for i, info in enumerate(self._value_info):
             if info.name == name:
-                if dtype is None:
-                    dtype = info.type.tensor_type.elem_type
+                if value_info.type.tensor_type.elem_type == onnx.TensorProto.UNDEFINED:
+                    value_info.type.tensor_type.elem_type = (
+                        info.type.tensor_type.elem_type
+                    )
                 self._value_info.pop(i)
-                self._value_info_update.append(
-                    make_tensor_value_info(name, dtype, shape)
-                )
+                self._value_info_update.append(value_info)
                 return
-        if dtype is None:
+        if value_info.type.tensor_type.elem_type == onnx.TensorProto.UNDEFINED:
             raise ValueError(
                 f"dtype is required because value is not existing for {name}"
             )
-        self._value_info_update.append(make_tensor_value_info(name, dtype, shape))
+        self._value_info_update.append(value_info)
 
     def set_seqeuence_info(
         self, name: str, shape: Sequence[int | str], dtype: int | None = None
