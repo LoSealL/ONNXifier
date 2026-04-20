@@ -288,7 +288,8 @@ class TRTAttentionRewriter(Rewriter):
                         )
                     )
                     graph.inputs[merged_past_name] = len(graph.input) - 1
-                graph.remove_input(past_key)
+                if past_key != merged_past_name:
+                    graph.remove_input(past_key)
                 graph.remove_input(past_value)
                 plugin_op.input[3] = merged_past_name
 
@@ -314,7 +315,8 @@ class TRTAttentionRewriter(Rewriter):
                         )
                     )
                     graph.outputs[merged_present_name] = len(graph.output) - 1
-                graph.remove_output(present_key)
+                if present_key != merged_present_name:
+                    graph.remove_output(present_key)
                 graph.remove_output(present_value)
                 plugin_op.output[1] = merged_present_name
 

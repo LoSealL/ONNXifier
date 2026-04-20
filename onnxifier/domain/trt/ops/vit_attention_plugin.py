@@ -18,7 +18,7 @@ import onnx
 from onnx.defs import OpSchema
 
 from .. import TRT_IR_DOMAIN
-from .attention_plugin import _get_int_attribute
+from .attention_plugin import _get_int_attribute, _trim
 
 _T = "T", ["tensor(float16)", "tensor(bfloat16)", "tensor(float)"]
 
@@ -134,11 +134,12 @@ def from_onnx_attention(
     plugin_op.name = op.name
 
     # Map Q, K, V inputs (ONNX inputs 0, 1, 2)
-    plugin_op.input.extend([op.input[0], op.input[1], op.input[2]])
+    op_inputs = [op.input[0], op.input[1], op.input[2]]
 
     # cu_seqlens, max_seqlen_carrier - from kwargs
-    plugin_op.input.append(cu_seqlens)
-    plugin_op.input.append(max_seqlen_carrier)
+    op_inputs.append(cu_seqlens)
+    op_inputs.append(max_seqlen_carrier)
+    plugin_op.input.extend(_trim(op_inputs))
 
     # Extract attributes from ONNX Attention (spec: q_num_heads)
     num_heads = _get_int_attribute(op, "q_num_heads", 0)

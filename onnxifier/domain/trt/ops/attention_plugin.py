@@ -153,6 +153,14 @@ attention_plugin_schema = OpSchema(
 onnx.defs.register_schema(attention_plugin_schema)
 
 
+def _trim(inputs):
+    """Helper to trim trailing empty inputs."""
+    trimmed = list(inputs)
+    while trimmed and not trimmed[-1]:
+        trimmed.pop()
+    return trimmed
+
+
 def from_onnx_attention(
     op: onnx.NodeProto,
     head_size: int,
@@ -217,28 +225,29 @@ def from_onnx_attention(
     plugin_op.name = op.name
 
     # Map Q, K, V inputs (ONNX inputs 0, 1, 2)
-    plugin_op.input.extend([op.input[0], op.input[1], op.input[2]])
+    op_inputs = [op.input[0], op.input[1], op.input[2]]
 
     # past_key_value: use past_key (input[4]) if present
     past_key = op.input[4] if len(op.input) > 4 else ""
     if past_key:
         assert len(op.input) > 5  # past_value also needed
-        plugin_op.input.append(past_key)
+        op_inputs.append(past_key)
     else:
-        plugin_op.input.append("")
+        op_inputs.append("")
 
     # context_lengths, rope_rotary_cos_sin, kvcache_start_index - from kwargs
-    plugin_op.input.append(context_lengths)
-    plugin_op.input.append(rope_rotary_cos_sin)
-    plugin_op.input.append(kvcache_start_index)
+    op_inputs.append(context_lengths)
+    op_inputs.append(rope_rotary_cos_sin)
+    op_inputs.append(kvcache_start_index)
 
     # attention_mask - from ONNX input[3] (attn_mask)
     attn_mask = op.input[3] if len(op.input) > 3 else ""
-    plugin_op.input.append(attn_mask)
+    op_inputs.append(attn_mask)
 
     # attention_pos_id, k_v_scale_quant_orig - from kwargs
-    plugin_op.input.append(attention_pos_id)
-    plugin_op.input.append(k_v_scale_quant_orig)
+    op_inputs.append(attention_pos_id)
+    op_inputs.append(k_v_scale_quant_orig)
+    plugin_op.input.extend(_trim(op_inputs))
 
     # Extract attributes from ONNX Attention (spec: q_num_heads, kv_num_heads)
     num_q_heads = _get_int_attribute(op, "q_num_heads", 0)

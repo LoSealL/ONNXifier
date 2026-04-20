@@ -193,18 +193,18 @@ class PassManager:
                         debug(f"Applying patch pass: {patch} to {name}")
                         if rewriter := PASSES.get(patch):
                             g = _apply_pass(rewriter, g, specify_node_names)
+                    graphs[name] = (d, g, parents)
+                    if name:
+                        old_func = graphs[""][1].functions[name]
+                        function = self._make_function_from_subgraph(name, d, g)
+                        graphs[""][1].onnx_add_function(function, force=True)
+                        # sync parent graph caller nodes to match new signature
+                        self._update_parent_graph(parents, old_func, function, graphs)
                 except Exception as ex:  # pylint: disable=broad-exception-caught
                     error(f"{opt.__NAME__} failed at {name}: {ex}")
                     debug("\n".join(traceback.format_exception(ex)))
                     if strict:
                         raise
-                graphs[name] = (d, g, parents)
-                if name:
-                    old_func = graphs[""][1].functions[name]
-                    function = self._make_function_from_subgraph(name, d, g)
-                    graphs[""][1].onnx_add_function(function, force=True)
-                    # sync parent graph caller nodes to match new signature
-                    self._update_parent_graph(parents, old_func, function, graphs)
         return graphs[""][1]
 
     def _make_subgraph_from_functions(self, graph: OnnxGraph):
@@ -270,10 +270,10 @@ class PassManager:
         that their ``input`` / ``output`` lists stay positionally aligned with
         the new function signature.
         """
-        old_inputs = sorted(old_func.input)
-        old_outputs = sorted(old_func.output)
-        new_inputs = sorted(new_func.input)
-        new_outputs = sorted(new_func.output)
+        old_inputs = list(old_func.input)
+        old_outputs = list(old_func.output)
+        new_inputs = list(new_func.input)
+        new_outputs = list(new_func.output)
 
         if old_inputs == new_inputs and old_outputs == new_outputs:
             return  # nothing changed
@@ -289,14 +289,34 @@ class PassManager:
                 caller: NodeProto = parent_graph.nodes[n]["pb"]
                 if caller.op_type != new_func.name or caller.domain != new_func.domain:
                     continue
-
+                remove_in = set(old_inputs) - set(new_inputs)
+                for i in remove_in:
+                    caller.input.remove(i)
+                    if i not in parent_graph.inputs:
+                        raise RuntimeError(
+                            f"Input {i} removed from function {caller.name} "
+                            "is used in other op!"
+                        )
+                    parent_graph.remove_input(i)
                 extra_in = set(new_inputs) - set(old_inputs)
+                # keep in order
+                extra_in = [i for i in new_inputs if i in extra_in]
                 for i in extra_in:
                     caller.input.append(i)
                     parent_graph.set_value_info(i, value_info=new_value_info[i])
                     # add input to graph
                     parent_graph.set_input(caller, i)
+                remove_out = set(old_outputs) - set(new_outputs)
+                for o in remove_out:
+                    caller.output.remove(o)
+                    if o not in parent_graph.outputs:
+                        raise RuntimeError(
+                            f"Output {o} removed from function {caller.name} "
+                            "is used in other op!"
+                        )
+                    parent_graph.remove_output(o)
                 extra_out = set(new_outputs) - set(old_outputs)
+                extra_out = [o for o in new_outputs if o in extra_out]
                 for o in extra_out:
                     caller.output.append(o)
                     parent_graph.set_value_info(o, value_info=new_value_info[o])
@@ -309,6 +329,11 @@ class PassManager:
     def _make_function_from_subgraph(self, name: str, domain: str, model: OnnxGraph):
         # pylint: disable=protected-access
         model._keep_value_info = True
+        # set inputs/outputs to value info
+        for i in model.input:
+            model.set_value_info(i.name, value_info=i)
+        for o in model.output:
+            model.set_value_info(o.name, value_info=o)
         h = model.model
         function = make_function(
             domain,
