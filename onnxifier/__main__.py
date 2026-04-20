@@ -20,6 +20,7 @@ import argparse
 import json
 from collections import defaultdict
 from collections.abc import Sequence
+from itertools import chain
 from pathlib import Path
 
 from . import ONNXIFIER_OPSET, PassManager, convert_graph
@@ -82,10 +83,17 @@ def parse_args():
         action="store_false",
         help="no checking output model",
     )
-    parser.add_argument(
+    check_or_dry_run = parser.add_mutually_exclusive_group()
+    check_or_dry_run.add_argument(
         "--check",
         action="store_true",
         help="check optimized model with random inputs",
+    )
+    check_or_dry_run.add_argument(
+        "-d",
+        "--dry-run",
+        action="store_true",
+        help="only run passes without saving the output model",
     )
     parser.add_argument(
         "--checker-backend",
@@ -246,9 +254,10 @@ def main():
         exit(1)
     # TODO: need to check configs?
 
+    activate = chain(*map(lambda s: s.split(","), args.activate))
     graph = convert_graph(
         model=input_model,
-        passes=[] if args.no_passes else args.activate,
+        passes=[] if args.no_passes else list(activate),
         exclude=args.remove,
         onnx_format=args.format,
         configs=configs,
@@ -256,13 +265,14 @@ def main():
         recursive=args.recursive,
         specify_node_names=args.nodes,
     )
-    output_model = graph.save(
-        output_model,
-        format=args.format,
-        infer_shapes=args.infer_shapes,
-        check=args.uncheck,
-    )
-    print(f"model saved to {output_model}")
+    if not args.dry_run:
+        output_model = graph.save(
+            output_model,
+            format=args.format,
+            infer_shapes=args.infer_shapes,
+            check=args.uncheck,
+        )
+        print(f"model saved to {output_model}")
     if args.check and isinstance(output_model, Path):
         error_maps = check_accuracy(
             input_model,
