@@ -254,10 +254,13 @@ def main():
         exit(1)
     # TODO: need to check configs?
 
-    activate = chain(*map(lambda s: s.split(","), args.activate))
+    if args.activate is None:
+        activate = None
+    else:
+        activate = list(chain(*map(lambda s: s.split(","), args.activate)))
     graph = convert_graph(
         model=input_model,
-        passes=[] if args.no_passes else list(activate),
+        passes=[] if args.no_passes else activate,
         exclude=args.remove,
         onnx_format=args.format,
         configs=configs,
