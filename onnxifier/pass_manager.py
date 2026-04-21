@@ -35,24 +35,36 @@ from .passes.utils import extract_function
 from .traits import RewriterInterface
 
 
-def _is_function(rewriter) -> bool:
-    """Return True when ``rewriter`` is either a plain function or a
-    ``functools.partial`` object that wraps a function.
-
-    This simplifies repeated inline checks like:
-    ``(isinstance(rewriter, partial) and
-    inspect.isfunction(rewriter.func)) or inspect.isfunction(rewriter)``
-    and centralises the logic for easier testing and future changes.
+def _can_specify_node_names(rewriter) -> bool:
+    """Return True when ``rewriter`` is a callable that can accept the
+    ``_specify_node_names`` argument.
     """
+
+    # is either a plain function or a `functools.partial` object that wraps a function.
     is_partial_func = False
     if isinstance(rewriter, partial) and inspect.isfunction(rewriter.func):
         is_partial_func = True
     is_plain_func = inspect.isfunction(rewriter)
-    return is_partial_func or is_plain_func
+
+    if is_plain_func:
+        sig = inspect.signature(rewriter)
+    elif is_partial_func:
+        sig = inspect.signature(rewriter.func)
+    else:
+        # must be Rewriter subclass
+        return True
+    for k, v in sig.parameters.items():
+        if v.kind in (v.KEYWORD_ONLY, v.POSITIONAL_OR_KEYWORD) and k in (
+            "_specify_node_names",
+        ):
+            return True
+        elif v.kind == v.VAR_KEYWORD:
+            return True
+    return False
 
 
 def _apply_pass(rewriter, g, specify_node_names):
-    if _is_function(rewriter) or not specify_node_names:
+    if not _can_specify_node_names(rewriter) or not specify_node_names:
         g = rewriter(g)
     else:
         g = rewriter(g, _specify_node_names=specify_node_names)
