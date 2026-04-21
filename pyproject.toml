@@ -127,4 +127,5 @@ dev = [
     "pytest",
     "pytest-cov",
     "torch",
+    "torchvision",
 ]

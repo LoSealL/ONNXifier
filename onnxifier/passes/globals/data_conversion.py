@@ -30,10 +30,14 @@ from ..utils import cast_in
 
 
 @L1.register()
-def half_to_float(graph: OnnxGraph) -> OnnxGraph:
+def half_to_float(
+    graph: OnnxGraph, _specify_node_names: list[str] | None = None
+) -> OnnxGraph:
     """Convert half consts and values to float32."""
 
     for node in graph:
+        if _specify_node_names and node not in _specify_node_names:
+            continue
         node_pb = graph.nodes[node]["pb"]
         if node_pb.op_type == "Constant":
             tensor = node_pb.attribute[0].t
@@ -48,11 +52,15 @@ def half_to_float(graph: OnnxGraph) -> OnnxGraph:
                 if attr.name == "to" and attr.i == TensorProto.FLOAT16:
                     attr.i = TensorProto.FLOAT
     for init in graph.initializer:
+        if _specify_node_names and init.name not in _specify_node_names:
+            continue
         if init.data_type == TensorProto.FLOAT16:
             array = to_array(init).astype("float32")
             init.data_type = TensorProto.FLOAT
             init.raw_data = from_array(array).raw_data
     for io in itertools.chain(graph.input, graph.output):
+        if _specify_node_names and io.name not in _specify_node_names:
+            continue
         if io.type.tensor_type.elem_type == TensorProto.FLOAT16:
             io.type.tensor_type.elem_type = TensorProto.FLOAT
     return graph
@@ -71,10 +79,14 @@ class CanonicalizeResizeScale(Rewriter):
 
 
 @PASSES.register(patch=[CanonicalizeResizeScale])
-def float_to_half(graph: OnnxGraph) -> OnnxGraph:
+def float_to_half(
+    graph: OnnxGraph, _specify_node_names: list[str] | None = None
+) -> OnnxGraph:
     """Convert float32 consts and values to half."""
 
     for node in graph:
+        if _specify_node_names and node not in _specify_node_names:
+            continue
         node_pb = graph.nodes[node]["pb"]
         if node_pb.op_type == "Constant":
             tensor = node_pb.attribute[0].t
@@ -89,11 +101,15 @@ def float_to_half(graph: OnnxGraph) -> OnnxGraph:
                 if attr.name == "to" and attr.i == TensorProto.FLOAT:
                     attr.i = TensorProto.FLOAT16
     for init in graph.initializer:
+        if _specify_node_names and init.name not in _specify_node_names:
+            continue
         if init.data_type == TensorProto.FLOAT:
             array = to_array(init).astype("float16")
             init.data_type = TensorProto.FLOAT16
             init.raw_data = from_array(array).raw_data
     for io in itertools.chain(graph.input, graph.output):
+        if _specify_node_names and io.name not in _specify_node_names:
+            continue
         if io.type.tensor_type.elem_type == TensorProto.FLOAT:
             io.type.tensor_type.elem_type = TensorProto.FLOAT16
     return graph

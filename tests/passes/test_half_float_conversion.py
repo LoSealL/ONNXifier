@@ -85,6 +85,68 @@ def _build_graph_with_resize():
     return OnnxGraph(model)
 
 
+def _build_half_graph_for_specify():
+    const = make_node(
+        "Constant",
+        [],
+        ["const_out"],
+        name="const_half",
+        value=onnx.numpy_helper.from_array(np.array([1], np.float16), "const_tensor"),
+    )
+    cast = make_node(
+        "Cast", ["x"], ["cast_out"], name="cast_to_half", to=onnx.TensorProto.FLOAT16
+    )
+    add0 = make_node("Add", ["cast_out", "w_sel"], ["sum0"], name="add0")
+    add1 = make_node("Add", ["sum0", "w_skip"], ["sum1"], name="add1")
+    add2 = make_node("Add", ["sum1", "const_out"], ["z"], name="add2")
+    graph = make_graph(
+        [const, cast, add0, add1, add2],
+        "test_half_specify",
+        [make_tensor_value_info("x", onnx.TensorProto.FLOAT16, [1])],
+        [make_tensor_value_info("z", onnx.TensorProto.FLOAT16, [1])],
+        initializer=[
+            onnx.numpy_helper.from_array(np.array([2], np.float16), "w_sel"),
+            onnx.numpy_helper.from_array(np.array([3], np.float16), "w_skip"),
+        ],
+    )
+    model = make_model(graph, opset_imports=[ONNXIFIER_OPSET])
+    onnx.checker.check_model(model, True)
+    return OnnxGraph(model)
+
+
+def _build_float_graph_for_specify():
+    const = make_node(
+        "Constant",
+        [],
+        ["const_out"],
+        name="const_float",
+        value=onnx.numpy_helper.from_array(np.array([1], np.float32), "const_tensor"),
+    )
+    cast = make_node(
+        "Cast",
+        ["x"],
+        ["cast_out"],
+        name="cast_to_float",
+        to=onnx.TensorProto.FLOAT,
+    )
+    add0 = make_node("Add", ["cast_out", "w_sel"], ["sum0"], name="add0")
+    add1 = make_node("Add", ["sum0", "w_skip"], ["sum1"], name="add1")
+    add2 = make_node("Add", ["sum1", "const_out"], ["z"], name="add2")
+    graph = make_graph(
+        [const, cast, add0, add1, add2],
+        "test_float_specify",
+        [make_tensor_value_info("x", onnx.TensorProto.FLOAT, [1])],
+        [make_tensor_value_info("z", onnx.TensorProto.FLOAT, [1])],
+        initializer=[
+            onnx.numpy_helper.from_array(np.array([2], np.float32), "w_sel"),
+            onnx.numpy_helper.from_array(np.array([3], np.float32), "w_skip"),
+        ],
+    )
+    model = make_model(graph, opset_imports=[ONNXIFIER_OPSET])
+    onnx.checker.check_model(model, True)
+    return OnnxGraph(model)
+
+
 def test_half_to_float():
     graph = _build_graph(True)
     pm = PassManager(["half_to_float"])
@@ -173,8 +235,65 @@ def test_half_to_float_cast():
     assert len(checked_value) > 0
 
 
+def test_half_to_float_with_specify_node_names():
+    graph = _build_half_graph_for_specify()
+    pm = PassManager(["half_to_float"])
+    graph = pm.optimize(
+        graph,
+        strict=True,
+        specify_node_names={"const_half", "cast_to_half", "w_sel", "x"},
+    )
+
+    node_map = {graph.nodes[n]["pb"].name: graph.nodes[n]["pb"] for n in graph}
+    assert node_map["const_half"].attribute[0].t.data_type == onnx.TensorProto.FLOAT
+    assert node_map["cast_to_half"].attribute[0].i == onnx.TensorProto.FLOAT
+
+    init_map = {i.name: i for i in graph.initializer}
+    assert init_map["w_sel"].data_type == onnx.TensorProto.FLOAT
+    assert init_map["w_skip"].data_type == onnx.TensorProto.FLOAT16
+
+    assert graph.input[0].type.tensor_type.elem_type == onnx.TensorProto.FLOAT
+    assert graph.output[0].type.tensor_type.elem_type == onnx.TensorProto.FLOAT16
+
+
+def test_float_to_half_with_specify_node_names():
+    graph = _build_float_graph_for_specify()
+    pm = PassManager(["float_to_half"])
+    graph = pm.optimize(
+        graph,
+        strict=True,
+        specify_node_names={"const_float", "cast_to_float", "w_sel", "x"},
+    )
+
+    node_map = {graph.nodes[n]["pb"].name: graph.nodes[n]["pb"] for n in graph}
+    assert node_map["const_float"].attribute[0].t.data_type == onnx.TensorProto.FLOAT16
+    assert node_map["cast_to_float"].attribute[0].i == onnx.TensorProto.FLOAT16
+
+    init_map = {i.name: i for i in graph.initializer}
+    assert init_map["w_sel"].data_type == onnx.TensorProto.FLOAT16
+    assert init_map["w_skip"].data_type == onnx.TensorProto.FLOAT
+
+    assert graph.input[0].type.tensor_type.elem_type == onnx.TensorProto.FLOAT16
+    assert graph.output[0].type.tensor_type.elem_type == onnx.TensorProto.FLOAT
+
+
 def test_float_to_half_with_resize():
     graph = _build_graph_with_resize()
     pm = PassManager(["float_to_half"])
     graph = pm.optimize(graph, strict=True)
     onnx.checker.check_model(graph.model, True)
+
+    resize = None
+    for node in graph.model.graph.node:
+        if node.op_type == "Resize":
+            resize = node
+            break
+    assert resize is not None
+
+    cast_for_scale = None
+    for node in graph.model.graph.node:
+        if node.op_type == "Cast" and node.output and node.output[0] == resize.input[2]:
+            cast_for_scale = node
+            break
+    assert cast_for_scale is not None
+    assert cast_for_scale.attribute[0].i == onnx.TensorProto.FLOAT
