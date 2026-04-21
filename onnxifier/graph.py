@@ -780,7 +780,10 @@ class OnnxGraph(nx.DiGraph):
             # pylint: disable=import-outside-toplevel
             from .passes.globals.infer_shape import infer_shape
 
-            graph_with_shape = infer_shape(self)
+            try:
+                graph_with_shape = infer_shape(self)
+            except onnx.shape_inference.InferenceError:
+                graph_with_shape = self
             # pylint: disable=protected-access
             graph_with_shape._keep_value_info = True
             model = graph_with_shape.model
