@@ -2,29 +2,29 @@
 
 [English](README.md) | [中文](README_CN.md)
 
-A simple tool to convert any IR format to ONNX file.
+一个将任意 IR 格式转换为 ONNX 文件的简单工具。
 
 [![Checked with pyright](https://microsoft.github.io/pyright/img/pyright_badge.svg)](https://microsoft.github.io/pyright/)
 
-| Framework | Status |
-|:----------|:-------|
-| OpenVINO    | ✅  |
-| ONNXRuntime | ✅  |
-| TensorRT    | 🚧  |
-| TensorRT-LLM | 🚧 |
+| 框架        | 状态   |
+|:------------|:-------|
+| OpenVINO    | ✅     |
+| ONNXRuntime | ✅     |
+| TensorRT    | 🚧     |
+| TensorRT-LLM | 🚧    |
 
-- ✅: well supported
-- 🪛: partially supported
-- 🚧: developing
+- ✅: 完善支持
+- 🪛: 部分支持
+- 🚧: 开发中
 
-## Usage
+## 使用方法
 
-1. Install from PyPI
+1. 从 PyPI 安装
 ```shell
 pip install onnxifier
 ```
 
-2. Convert IR using CLI
+2. 使用 CLI 转换 IR
 ```shell
 onnxify model.xml
 ```
@@ -67,7 +67,7 @@ options:
                         these nodes
 ```
 
-To print pass information:
+打印 Pass 信息：
 
 ```shell
 onnxify --print all
@@ -75,11 +75,11 @@ onnxify --print fuse_swish
 onnxify --print l1
 ```
 
-### Shell Completion
+### Shell 自动补全
 
-`onnxify` provides tab-completion for **Bash** and **PowerShell** to help you quickly select pass names and options.
+`onnxify` 为 **Bash** 和 **PowerShell** 提供了 Tab 自动补全功能，帮助你快速选择 Pass 名称和选项。
 
-After installing `onnxifier` from PyPI, run the built-in installer once for your shell:
+从 PyPI 安装 `onnxifier` 后，针对你的 Shell 运行一次内置安装器即可：
 
 **Bash**
 ```shell
@@ -93,53 +93,53 @@ onnxify --install-completion pwsh
 . $PROFILE
 ```
 
-The installer is idempotent — running it again will not duplicate entries in your profile.
+安装器具有幂等性 —— 重复运行不会在你的配置文件中产生重复条目。
 
-Once enabled, you can use `Tab` to complete pass names after `-a` / `-r` / `--print`, for example:
+启用后，你可以在 `-a` / `-r` / `--print` 后按 `Tab` 补全 Pass 名称，例如：
 
 ```shell
-# Complete a single pass
+# 补全单个 Pass
 onnxify model.onnx -a ins<TAB>
 # → inspect_sparsity_ratio inspect_weights_distribution insert_conv_before_act_shave
 
-# Complete multiple space-separated passes
+# 补全多个空格分隔的 Pass
 onnxify model.onnx -a infer_shape fold_const<TAB>
 # → fold_constant
 
-# Complete comma-separated passes
+# 补全逗号分隔的 Pass
 onnxify model.onnx -a fuse_gelu,ins<TAB>
 # → fuse_gelu,inspect_sparsity_ratio ...
 
-# Complete --print arguments
+# 补全 --print 参数
 onnxify --print l<TAB>
 # → l1 l2 l3
 ```
 
 ## TODO
 
-- [ ] [**OV**] Add [Loop](https://docs.openvino.ai/2024/documentation/openvino-ir-format/operation-sets/operation-specs/infrastructure/loop-5.html) support.
-- [ ] [**OV**] Add [NMS](https://docs.openvino.ai/2024/documentation/openvino-ir-format/operation-sets/operation-specs/sort/non-max-suppression-9.html) support.
-- [ ] [**OV**] Add [If](https://docs.openvino.ai/2024/documentation/openvino-ir-format/operation-sets/operation-specs/condition/if-8.html) support.
-- [ ] [**ONNX**] Support to optimize [If](https://onnx.ai/onnx/operators/onnx__If.html).
+- [ ] [**OV**] 添加 [Loop](https://docs.openvino.ai/2024/documentation/openvino-ir-format/operation-sets/operation-specs/infrastructure/loop-5.html) 支持。
+- [ ] [**OV**] 添加 [NMS](https://docs.openvino.ai/2024/documentation/openvino-ir-format/operation-sets/operation-specs/sort/non-max-suppression-9.html) 支持。
+- [ ] [**OV**] 添加 [If](https://docs.openvino.ai/2024/documentation/openvino-ir-format/operation-sets/operation-specs/condition/if-8.html) 支持。
+- [ ] [**ONNX**] 支持优化 [If](https://onnx.ai/onnx/operators/onnx__If.html)。
 
 
-## Contribute
+## 贡献代码
 
-1. pyright type checking
+1. pyright 类型检查
 
 ```
 pip install -U pyright
 pyright onnxifier
 ```
 
-2. mypy type checking
+2. mypy 类型检查
 
 ```
 pip install -U mypy
 mypy onnxifier --disable-error-code=import-untyped --disable-error=override --disable-error=call-overload
 ```
 
-3. pre-commit checking
+3. pre-commit 检查
 
 ```
 pip install -U pre-commit
