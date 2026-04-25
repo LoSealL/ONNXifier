@@ -123,7 +123,7 @@ dev = [
     "openvino>=2025.0.0",
     "pooch",
     "pre-commit",
-    "pyright>=1.1.408",
+    "pyright>=1.1.408,<1.1.409",
     "pytest",
     "pytest-cov",
     "torch",

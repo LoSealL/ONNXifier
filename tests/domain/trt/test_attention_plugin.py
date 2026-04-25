@@ -77,7 +77,7 @@ class TestFromOnnxAttention:
         assert plugin_op.op_type == "AttentionPlugin"
         assert plugin_op.domain == "trt"
         assert plugin_op.name == "test_attention"
-        assert list(plugin_op.input) == ["q", "k", "v", "", "", "", "", "", "", ""]
+        assert list(plugin_op.input) == ["q", "k", "v"]
         assert list(plugin_op.output) == ["output", ""]
 
     def test_qkv_inputs_mapped(self):
@@ -108,7 +108,7 @@ class TestFromOnnxAttention:
         )
         plugin_op = from_onnx_attention(op, 64)
 
-        assert plugin_op.input[3] == ""
+        assert len(plugin_op.input) == 3
 
     def test_attention_mask_from_input3(self):
         op = _make_attention_node(
