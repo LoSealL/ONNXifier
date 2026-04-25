@@ -18,6 +18,7 @@ limitations under the License.
 
 import argparse
 import json
+import sys
 from collections import defaultdict
 from collections.abc import Sequence
 from itertools import chain
@@ -35,6 +36,13 @@ def parse_args():
         prog="onnxify",
         usage=USAGE,
         description="onnxify command-line api",
+    )
+    parser.add_argument(
+        "--install-completion",
+        nargs="?",
+        const="bash" if sys.platform != "win32" else "pwsh",
+        choices=("bash", "pwsh"),
+        help="install shell completion for the specified shell and exit.",
     )
     parser.add_argument(
         "-a",
@@ -99,7 +107,7 @@ def parse_args():
         "--checker-backend",
         choices=("onnx", "openvino", "onnxruntime"),
         default="onnxruntime",
-        help="backend for accuracy checking, defaults to openvino",
+        help="backend for accuracy checking, defaults to onnxruntime",
     )
     parser.add_argument(
         "-v",
@@ -231,6 +239,14 @@ def read_configs_from_args_or_file(args, argv) -> tuple[Path, Path, dict | None]
 
 def main():
     args, argv = parse_args()
+
+    if args.install_completion:
+        # pylint: disable=import-outside-toplevel
+        from .completions.installer import install
+
+        install(args.install_completion)
+        exit(0)
+
     if args.log_level:
         set_level(args.log_level)
 
