@@ -61,7 +61,7 @@ class TestFromOnnxAttention:
         assert plugin_op.op_type == "ViTAttentionPlugin"
         assert plugin_op.domain == "trt"
         assert plugin_op.name == "test_attention"
-        assert list(plugin_op.input) == ["q", "k", "v", "", ""]
+        assert list(plugin_op.input) == ["q", "k", "v"]
         assert list(plugin_op.output) == ["output"]
 
     def test_qkv_inputs_mapped(self):
