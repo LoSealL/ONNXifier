@@ -144,10 +144,12 @@ class Rewriter(metaclass=MetaRewriter):
         for hook_id, hook_fn in self.pre_hooks.items():
             trace("Apply pre hook %s before %s", hook_id, type(self).__name__)
             graph = hook_fn(graph)
-        _names: set[str] = set()
-        if names:
-            _names.update([names] if isinstance(names, str) else names)
-        if _specify_node_names:
+        _names: set[str] | None = None
+        if names is not None:
+            _names = set([names] if isinstance(names, str) else names)
+        if _specify_node_names is not None:
+            if _names is None:
+                _names = set()
             _names.update(_specify_node_names)
         while repeat > 0:
             matched_nodes = self.pattern.match(graph, _names)

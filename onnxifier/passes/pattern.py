@@ -127,7 +127,7 @@ class SingleNodePattern(Pattern):
         ]
         if self.op_name:
             conditions.append(self._check_name(node, {self.op_name}))
-        elif node_names:
+        elif node_names is not None:
             conditions.append(self._check_name(node, node_names))
         return all(conditions)
 
@@ -135,7 +135,7 @@ class SingleNodePattern(Pattern):
         return op_type == node.op_type or op_type is None
 
     def _check_name(self, node: NodeProto, names: set[str]):
-        return not names or node.name in names
+        return node.name in names
 
     def _check_attr(self, node: NodeProto):
         if not self.attr:

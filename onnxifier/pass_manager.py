@@ -64,7 +64,7 @@ def _can_specify_node_names(rewriter) -> bool:
 
 
 def _apply_pass(rewriter, g, specify_node_names):
-    if not _can_specify_node_names(rewriter) or not specify_node_names:
+    if not _can_specify_node_names(rewriter) or specify_node_names is None:
         g = rewriter(g)
     else:
         g = rewriter(g, _specify_node_names=specify_node_names)
