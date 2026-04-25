@@ -18,6 +18,7 @@ limitations under the License.
 __version__ = "2.1.1"
 
 import os
+import re
 from collections.abc import Sequence
 from copy import deepcopy
 from typing import Any, Literal
@@ -28,9 +29,43 @@ from onnx.helper import make_operatorsetid
 
 from .domain import IR_DOMAIN, detect_domain, openvino_xml_to_onnx_graph
 from .graph import OnnxGraph
+from .logger import debug
 from .pass_manager import PassManager, print_pass_simple
 from .passes.version_converter.downgrade import downgrade_op_version
 from .passes.version_converter.upgrade import upgrade_op_version
+
+
+def _normalize_specify_node_names(
+    graph: OnnxGraph, specify_node_names: Sequence[str] | None
+) -> set[str] | None:
+    """Resolve exact names and regex patterns to concrete node names.
+
+    Exact node names take priority. If an entry does not exactly match any node in the
+    graph, it is treated as a regular expression and matched against node names.
+    """
+
+    if specify_node_names is None:
+        return None
+
+    graph_node_names = (
+        set(graph.nodes)
+        | set(graph.initializers)
+        | set(graph.inputs)
+        | set(graph.outputs)
+    )
+    resolved_node_names: set[str] = set()
+    for pattern in specify_node_names:
+        if pattern in graph_node_names:
+            resolved_node_names.add(pattern)
+            continue
+        try:
+            regex = re.compile(pattern)
+        except re.error as ex:
+            raise ValueError(f"Invalid node name regex {pattern!r}: {ex}") from ex
+        resolved_node_names.update(
+            node_name for node_name in graph_node_names if regex.search(node_name)
+        )
+    return resolved_node_names
 
 
 def convert_graph(
@@ -58,8 +93,8 @@ def convert_graph(
         target_opset (int, optional): Target opset version for ONNX domain. Defaults
             to ``ONNXIFIER_OPSET.version``.
         recursive (bool, optional): Apply passes to functions recursively.
-        specify_node_names (Sequence[str], optional): Specify node names to apply
-            passes only on those nodes.
+        specify_node_names (Sequence[str], optional): Specify exact node names or
+            regex patterns to apply passes only on matched nodes.
 
     Returns:
         OnnxGraph: converted graph
@@ -80,7 +115,8 @@ def convert_graph(
     pm = PassManager(passes, exclude=exclude, configs=configs)
     if print_passes:
         print_pass_simple(pm)
-    node_names = set(specify_node_names) if specify_node_names else None
+    node_names = _normalize_specify_node_names(graph, specify_node_names)
+    debug("Filtered names: %s", node_names)
     graph = pm.optimize(
         graph,
         strict=strict,
@@ -120,8 +156,8 @@ def convert(
         target_opset (int, optional): Target opset version for ONNX domain. Defaults
             to ``ONNXIFIER_OPSET.version``.
         recursive (bool, optional): Apply passes to functions recursively.
-        specify_node_names (Sequence[str], optional): Specify node names to apply
-            passes only on those nodes.
+        specify_node_names (Sequence[str], optional): Specify exact node names or
+            regex patterns to apply passes only on matched nodes.
     """
 
     graph = convert_graph(
