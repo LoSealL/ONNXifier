@@ -38,7 +38,7 @@ _INPUT_NAMES = {
 
 _INPUT_SHAPES: dict[str, list[str | int]] = {
     "context_lengths": ["batch_size"],
-    "rope_rotary_cos_sin": ["max_seq_len", "head_dim_2"],
+    "rope_rotary_cos_sin": ["batch_size", "max_position_embeddings", "rotary_dim"],
     "kvcache_start_index": ["batch_size"],
 }
 

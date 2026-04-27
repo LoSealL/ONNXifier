@@ -123,9 +123,11 @@ dev = [
     "openvino>=2025.0.0",
     "pooch",
     "pre-commit",
+    "pyreadline3>=3.5.4",
     "pyright>=1.1.408,<1.1.409",
     "pytest",
     "pytest-cov",
+    "ruff>=0.15.12",
     "torch",
     "torchvision",
 ]

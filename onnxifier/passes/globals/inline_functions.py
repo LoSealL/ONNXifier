@@ -24,6 +24,7 @@ from onnx.inliner import inline_local_functions
 from onnx.onnx_pb import NodeProto
 
 from ...graph import OnnxGraph
+from ...logger import debug
 from .. import PASSES
 from ..pattern import SingleNodePattern
 from ..rewriter import Rewriter
@@ -33,6 +34,30 @@ from ..rewriter import Rewriter
 def inline_local_functions_pass(graph: OnnxGraph) -> OnnxGraph:
     """Inline all local functions in the graph."""
     return OnnxGraph(inline_local_functions(graph.model), base_dir=graph.external_base)
+
+
+@PASSES.register("remove_unused_functions")
+def remove_unused_functions_pass(graph: OnnxGraph) -> OnnxGraph:
+    """Remove all unused functions in the graph."""
+    used_functions: set[str] = set()
+    node_stack: list[NodeProto] = [graph.nodes[i]["pb"] for i in graph]
+    max_steps: int = 100000
+    while node_stack and max_steps >= 0:
+        max_steps -= 1
+        node_pb = node_stack.pop()
+        if node_pb.op_type in graph.functions and node_pb.op_type not in used_functions:
+            used_functions.add(node_pb.op_type)
+            node_stack.extend(graph.functions[node_pb.op_type].node)
+
+    unused_functions: set[str] = set()
+    for func_name in graph.functions:
+        if func_name not in used_functions:
+            unused_functions.add(func_name)
+
+    debug("Removed functions: %s", unused_functions)
+    for f in unused_functions:
+        graph.functions.pop(f, None)
+    return graph
 
 
 @PASSES.register("inline_functions")

@@ -20,7 +20,7 @@ from onnx.defs import OpSchema
 from .. import TRT_IR_DOMAIN
 
 _T = "T", ["tensor(float16)", "tensor(bfloat16)", "tensor(float)"]
-_T_KV = "T_KV", ["tensor(float16)", "tensor(float8e4m3fn)"]
+_T_KV = "T_KV", ["tensor(float16)", "tensor(bfloat16)", "tensor(float8e4m3fn)"]
 
 # Define ONNX OpSchema for AttentionPlugin
 attention_plugin_schema = OpSchema(
