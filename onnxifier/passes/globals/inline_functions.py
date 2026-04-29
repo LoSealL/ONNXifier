@@ -24,7 +24,7 @@ from onnx.inliner import inline_local_functions
 from onnx.onnx_pb import NodeProto
 
 from ...graph import OnnxGraph
-from ...logger import debug
+from ...logger import debug, warning
 from .. import PASSES
 from ..pattern import SingleNodePattern
 from ..rewriter import Rewriter
@@ -48,6 +48,15 @@ def remove_unused_functions_pass(graph: OnnxGraph) -> OnnxGraph:
         if node_pb.op_type in graph.functions and node_pb.op_type not in used_functions:
             used_functions.add(node_pb.op_type)
             node_stack.extend(graph.functions[node_pb.op_type].node)
+
+    if node_stack:
+        warning(
+            "remove_unused_functions: traversal limit reached with %d nodes "
+            "remaining; skipping function removal to avoid incorrectly deleting "
+            "referenced functions.",
+            len(node_stack),
+        )
+        return graph
 
     unused_functions: set[str] = set()
     for func_name in graph.functions:
