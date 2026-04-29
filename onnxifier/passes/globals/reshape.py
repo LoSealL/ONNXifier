@@ -1,5 +1,5 @@
 """
-Copyright (C) 2025 The ONNXIFIER Authors.
+Copyright (C) 2026 The ONNXIFIER Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@ limitations under the License.
 """
 
 from ... import OnnxGraph
+from ...logger import debug
 from .. import PASSES
 
 
@@ -42,6 +43,8 @@ def reshape_model(graph: OnnxGraph, shape_info: dict[str, list[int | str]]):
     """
 
     def _update_dim(dims, shape):
+        while len(dims) < len(shape):
+            dims.add()
         for d, i in zip(dims, shape):
             if isinstance(i, int):
                 if i < 0 and i != -1:
@@ -53,11 +56,18 @@ def reshape_model(graph: OnnxGraph, shape_info: dict[str, list[int | str]]):
                 raise TypeError(f"shape must be int or str, but got {type(i)}")
 
     for _, input_info in enumerate(graph.input):
+        ori_shape, _ = graph.tensor_info(input_info.name)
+        if ori_shape is not None:
+            shape_info.setdefault(input_info.name, ori_shape)
         shape = shape_info[input_info.name]
         _update_dim(input_info.type.tensor_type.shape.dim, shape)
+        debug("update input %s shape to %s", input_info.name, shape)
     for _, output_info in enumerate(graph.output):
+        if output_info.name not in shape_info:
+            continue
         shape = shape_info[output_info.name]
         _update_dim(output_info.type.tensor_type.shape.dim, shape)
+        debug("update output %s shape to %s", output_info.name, shape)
     return graph
 
 

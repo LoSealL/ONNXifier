@@ -28,6 +28,7 @@ from contextlib import suppress
 from tempfile import TemporaryDirectory
 from typing import Any, Literal
 
+import ml_dtypes
 import numpy as np
 import onnx
 from onnx.helper import tensor_dtype_to_np_dtype
@@ -95,6 +96,8 @@ def _get_eval_onnxruntime(model):
             mapping[
                 onnxruntime.OrtValue.ortvalue_from_numpy(np.ones([], dtype)).data_type()
             ] = dtype
+        # special cases
+        mapping["tensor(bfloat16)"] = ml_dtypes.bfloat16
         return mapping
 
     inputs = {}

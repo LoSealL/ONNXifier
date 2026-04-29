@@ -343,8 +343,13 @@ class PassManager:
         model._keep_value_info = True
         # set inputs/outputs to value info
         for i in model.input:
+            # FIXME WA: for undefined data type, defaults to float32
+            if i.type.tensor_type.elem_type == 0:
+                i.type.tensor_type.elem_type = 1
             model.set_value_info(i.name, value_info=i)
         for o in model.output:
+            if o.type.tensor_type.elem_type == 0:
+                o.type.tensor_type.elem_type = 1
             model.set_value_info(o.name, value_info=o)
         h = model.model
         function = make_function(

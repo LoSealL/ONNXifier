@@ -19,7 +19,9 @@ from pathlib import Path
 
 import onnx
 
+from ..logger import warning
 from .intel import IR_DOMAIN
+from .trt import TRT_IR_DOMAIN
 
 _LAZY_LOAD = {}
 
@@ -35,6 +37,27 @@ def _lazy_load_xml_frontend():
     )
 
     _LAZY_LOAD[_make_key(IR_DOMAIN)] = _openvino_xml_to_onnx_graph
+
+
+def _lazy_register_trt_schema():
+    # pylint: disable=import-outside-toplevel
+    from .trt.ops import attention_plugin, dequantize_linear, vit_attention_plugin
+
+    if not onnx.defs.has(
+        attention_plugin.attention_plugin_schema.name,
+        attention_plugin.attention_plugin_schema.domain,
+    ):
+        onnx.defs.register_schema(attention_plugin.attention_plugin_schema)
+    if not onnx.defs.has(
+        vit_attention_plugin.vit_attention_plugin_schema.name,
+        vit_attention_plugin.vit_attention_plugin_schema.domain,
+    ):
+        onnx.defs.register_schema(vit_attention_plugin.vit_attention_plugin_schema)
+    if not onnx.defs.has(
+        dequantize_linear.dequantize_linear_schema.name,
+        dequantize_linear.dequantize_linear_schema.domain,
+    ):
+        onnx.defs.register_schema(dequantize_linear.dequantize_linear_schema)
 
 
 def openvino_xml_to_onnx_graph(
@@ -56,13 +79,21 @@ def detect_domain(
     if isinstance(model, onnx.ModelProto):
         if len(model.opset_import) == 0:
             return []
-        opsets = []
+        opsets = {}
         for opset in model.opset_import:
             if opset.domain not in ("", "ai.onnx", "ai.onnx.ml"):
-                opsets.append(opset)
-            if opset.domain == IR_DOMAIN.domain:
+                opsets[opset.domain] = opset
+        for op in model.graph.node:
+            if op.domain not in ("", "ai.onnx", "ai.onnx.ml"):
+                if op.domain not in opsets:
+                    warning("Found op with domain '%s' without import!", op.domain)
+                    opsets[op.domain] = onnx.helper.make_operatorsetid(op.domain, 1)
+        for domain in opsets:
+            if domain == IR_DOMAIN.domain:
                 _lazy_load_xml_frontend()
-        return opsets
+            if domain == TRT_IR_DOMAIN.domain:
+                _lazy_register_trt_schema()
+        return list(opsets.values())
     model = Path(model).resolve()
     if model.suffix.lower() == ".xml":
         _lazy_load_xml_frontend()

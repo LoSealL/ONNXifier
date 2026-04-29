@@ -198,15 +198,22 @@ def evaluate_on_node(
     except Exception:  # pylint: disable=broad-except
         debug(f"convert subgraph failed on {node.name}: [{all_preds}]")
         return
-    try:
-        # pylint: disable=import-outside-toplevel
-        from onnxifier.evaluator import Evaluator
+    if output_name is None:
+        output_name = sub_model.graph.output[0].name
+    # pylint: disable=import-outside-toplevel
+    from onnxifier.evaluator import Evaluator
 
-        if output_name is None:
-            output_name = sub_model.graph.output[0].name
+    try:
         runner = Evaluator(sub_model)
         return runner([output_name], {})[0]
     except Exception:  # pylint: disable=broad-except
+        # try onnx backend again
+        # onnxruntime/openvino doesn't work with bfloat16
+        try:
+            runner = Evaluator(sub_model, backend="onnx")
+            return runner([output_name], {})[0]
+        except Exception:  # pylint: disable=broad-except
+            pass
         node_name = canonical_node_name(node.name)
         temp_save = Path(tempfile.gettempdir()) / f"{node_name}.onnx"
         save_model(sub_model, temp_save)

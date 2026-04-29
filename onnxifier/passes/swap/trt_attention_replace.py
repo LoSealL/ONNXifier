@@ -38,7 +38,7 @@ _INPUT_NAMES = {
 
 _INPUT_SHAPES: dict[str, list[str | int]] = {
     "context_lengths": ["batch_size"],
-    "rope_rotary_cos_sin": ["max_seq_len", "head_dim_2"],
+    "rope_rotary_cos_sin": ["batch_size", "max_position_embeddings", "rotary_dim"],
     "kvcache_start_index": ["batch_size"],
 }
 
@@ -221,11 +221,11 @@ class TRTAttentionRewriter(Rewriter):
             else:
                 return False
 
-            # [batch, seq, heads, dim] -> [seq*batch, heads, dim]
+            # [batch, seq, heads, dim] -> [batch, seq, heads * dim]
             shape_name = f"{base}/shape_to_3d"
             shape_node = make_constant(
                 shape_name,
-                np.array([-1, heads, head_size], dtype=np.int64),
+                np.array([in_shape[0], -1, heads * head_size], dtype=np.int64),
             )
             converted_nodes.extend(
                 (
