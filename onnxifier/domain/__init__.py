@@ -87,7 +87,7 @@ def detect_domain(
             if op.domain not in ("", "ai.onnx", "ai.onnx.ml"):
                 if op.domain not in opsets:
                     warning("Found op with domain '%s' without import!", op.domain)
-                    opsets[op.domain] = onnx.OperatorSetIdProto(op.domain, 1)
+                    opsets[op.domain] = onnx.helper.make_operatorsetid(op.domain, 1)
         for domain in opsets:
             if domain == IR_DOMAIN.domain:
                 _lazy_load_xml_frontend()

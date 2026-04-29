@@ -57,7 +57,7 @@ def reshape_model(graph: OnnxGraph, shape_info: dict[str, list[int | str]]):
 
     for _, input_info in enumerate(graph.input):
         ori_shape, _ = graph.tensor_info(input_info.name)
-        if ori_shape:
+        if ori_shape is not None:
             shape_info.setdefault(input_info.name, ori_shape)
         shape = shape_info[input_info.name]
         _update_dim(input_info.type.tensor_type.shape.dim, shape)

@@ -55,7 +55,7 @@ def _type_str_to_dtype(type_str: str) -> int:
 def _get_schema_safe(node: NodeProto) -> OpSchema | None:
     """Safely retrieve ONNX OpSchema for a node."""
     try:
-        return onnx.defs.get_schema(node.op_type)
+        return onnx.defs.get_schema(node.op_type, domain=node.domain or "")
     except onnx.defs.SchemaError:
         return None
 
@@ -365,7 +365,13 @@ class InferDTypeRewriter(Rewriter):
         node = nodes[0]
         schema = _get_schema_safe(node)
         if schema is not None:
-            info("Found node schema: %s(%s)", node.op_type, schema.name)
+            debug(
+                "Found node schema: op=%s schema=%s domain=%s since_version=%s",
+                node.op_type,
+                schema.name,
+                node.domain,
+                schema.since_version,
+            )
 
         for output_idx, output_name in enumerate(node.output):
             if not output_name:
