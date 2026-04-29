@@ -19,6 +19,7 @@ limitations under the License.
 from onnx import NodeProto
 
 from ...graph import OnnxGraph
+from ...logger import warning
 from .. import PASSES
 from ..pattern import SingleNodePattern
 from ..rewriter import Rewriter
@@ -98,7 +99,16 @@ class AttentionAddKVCacheRewriter(Rewriter):
         present_value_name = f"{node.name}/present_value"
 
         # Get shape and dtype from input tensor for creating value info
-        input_shape, input_dtype = graph.tensor_info(node.input[0])
+        _, input_dtype = graph.tensor_info(node.input[0])
+        input_k_shape = graph.tensor_shape(node.input[1])
+        input_v_shape = graph.tensor_shape(node.input[2])
+        if input_k_shape[1] != input_v_shape[1]:
+            warning(
+                "K and V has different num of heads: %s vs %s",
+                input_k_shape[1],
+                input_v_shape[1],
+            )
+            return
 
         # Keep both cache sequence lengths dynamic for autoregressive decoding.
         # ONNX shape symbols cannot encode arithmetic relations, so use separate
@@ -107,10 +117,10 @@ class AttentionAddKVCacheRewriter(Rewriter):
         present_seq_len = "present_seq_len"
 
         # Resolve shapes for past_key and past_value inputs
-        past_shape = self._make_past_shape(input_shape, past_seq_len)
+        past_shape = self._make_past_shape(input_k_shape, past_seq_len)
 
         # Resolve shapes for present_key and present_value outputs
-        present_shape = self._make_present_shape(input_shape, present_seq_len)
+        present_shape = self._make_present_shape(input_k_shape, present_seq_len)
 
         # Register tensor metadata first so set_input/set_output can resolve
         # dtype/shape.

@@ -203,16 +203,6 @@ class TestFromOnnxAttention:
             if attr.name == "sliding_window_size":
                 assert attr.i == 128
 
-    def test_sliding_window_size_not_added_when_default(self):
-        op = _make_attention_node(
-            inputs=["q", "k", "v"],
-            outputs=["output"],
-        )
-        plugin_op = from_onnx_attention(op, 64, sliding_window_size=-1)
-
-        attr_names = [a.name for a in plugin_op.attribute]
-        assert "sliding_window_size" not in attr_names
-
     def test_num_kv_heads_defaults_to_num_heads(self):
         op = _make_attention_node(
             inputs=["q", "k", "v"],

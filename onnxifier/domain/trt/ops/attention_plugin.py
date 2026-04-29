@@ -282,19 +282,17 @@ def from_onnx_attention(
     enable_tree_attr.i = enable_tree_attention
     plugin_op.attribute.append(enable_tree_attr)
 
-    if enable_fp8_kv_cache:
-        enable_fp8_attr = onnx.AttributeProto()
-        enable_fp8_attr.name = "enable_fp8_kv_cache"
-        enable_fp8_attr.type = onnx.AttributeProto.INT
-        enable_fp8_attr.i = enable_fp8_kv_cache
-        plugin_op.attribute.append(enable_fp8_attr)
+    enable_fp8_attr = onnx.AttributeProto()
+    enable_fp8_attr.name = "enable_fp8_kv_cache"
+    enable_fp8_attr.type = onnx.AttributeProto.INT
+    enable_fp8_attr.i = enable_fp8_kv_cache
+    plugin_op.attribute.append(enable_fp8_attr)
 
-    if sliding_window_size != -1:
-        sliding_window_attr = onnx.AttributeProto()
-        sliding_window_attr.name = "sliding_window_size"
-        sliding_window_attr.type = onnx.AttributeProto.INT
-        sliding_window_attr.i = sliding_window_size
-        plugin_op.attribute.append(sliding_window_attr)
+    sliding_window_attr = onnx.AttributeProto()
+    sliding_window_attr.name = "sliding_window_size"
+    sliding_window_attr.type = onnx.AttributeProto.INT
+    sliding_window_attr.i = sliding_window_size
+    plugin_op.attribute.append(sliding_window_attr)
 
     # Map outputs:
     # ONNX output[0] (Y) -> attn_output

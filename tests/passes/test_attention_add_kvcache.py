@@ -15,7 +15,6 @@ limitations under the License.
 """
 
 import numpy as np
-from onnx import numpy_helper
 from onnx.helper import (
     make_graph,
     make_model,
@@ -24,6 +23,7 @@ from onnx.helper import (
     make_tensor_type_proto,
     make_value_info,
 )
+from onnx.numpy_helper import from_array
 
 from onnxifier import PassManager
 from onnxifier.graph import OnnxGraph
@@ -49,15 +49,17 @@ def _make_model_with_opset(opset_version: int):
                 make_value_info(
                     "q", make_tensor_type_proto(1, ["batch", "seq", "hidden"])
                 ),
-                make_value_info("k", make_tensor_type_proto(1, ["hidden", "hidden"])),
-                make_value_info("v", make_tensor_type_proto(1, ["hidden"])),
+                make_value_info(
+                    "k", make_tensor_type_proto(1, ["batch", "seq", "hidden"])
+                ),
+                make_value_info(
+                    "v", make_tensor_type_proto(1, ["batch", "seq", "hidden"])
+                ),
             ],
             [make_value_info("output", make_tensor_type_proto(1, [1, 384, 768]))],
             [
-                numpy_helper.from_array(
-                    np.random.randn(768, 768).astype(np.float32), "k"
-                ),
-                numpy_helper.from_array(np.random.randn(768).astype(np.float32), "v"),
+                from_array(np.random.randn(1, 384, 768).astype(np.float32), "k"),
+                from_array(np.random.randn(1, 384, 768).astype(np.float32), "v"),
             ],
         )
         return graph
@@ -85,10 +87,14 @@ def _make_model_with_kv_cache():
             "graph",
             [
                 make_value_info(
-                    "q", make_tensor_type_proto(1, ["batch", "seq", "hidden"])
+                    "q", make_tensor_type_proto(1, ["batch", "heads", "seq", "dim"])
                 ),
-                make_value_info("k", make_tensor_type_proto(1, ["hidden", "hidden"])),
-                make_value_info("v", make_tensor_type_proto(1, ["hidden"])),
+                make_value_info(
+                    "k", make_tensor_type_proto(1, ["batch", "heads", "seq", "dim"])
+                ),
+                make_value_info(
+                    "v", make_tensor_type_proto(1, ["batch", "heads", "seq", "dim"])
+                ),
                 make_value_info(
                     "past_key",
                     make_tensor_type_proto(1, ["batch", "heads", "past_seq", "dim"]),
@@ -99,7 +105,7 @@ def _make_model_with_kv_cache():
                 ),
             ],
             [
-                make_value_info("output", make_tensor_type_proto(1, [1, 384, 768])),
+                make_value_info("output", make_tensor_type_proto(1, [1, 3, 128, 768])),
                 make_value_info(
                     "present_key",
                     make_tensor_type_proto(1, ["batch", "heads", "pres_seq", "dim"]),
@@ -110,10 +116,8 @@ def _make_model_with_kv_cache():
                 ),
             ],
             [
-                numpy_helper.from_array(
-                    np.random.randn(768, 768).astype(np.float32), "k"
-                ),
-                numpy_helper.from_array(np.random.randn(768).astype(np.float32), "v"),
+                from_array(np.random.randn(1, 3, 128, 768).astype(np.float32), "k"),
+                from_array(np.random.randn(1, 3, 128, 768).astype(np.float32), "v"),
             ],
         )
         return graph
@@ -166,22 +170,24 @@ def _make_model_with_4d_input():
             [
                 make_value_info(
                     "q",
-                    make_tensor_type_proto(1, ["batch", "heads", "seq", "dim"]),
+                    make_tensor_type_proto(1, ["batch", "q_heads", "seq", "dim"]),
                 ),
-                make_value_info("k", make_tensor_type_proto(1, ["hidden", "hidden"])),
-                make_value_info("v", make_tensor_type_proto(1, ["hidden"])),
+                make_value_info(
+                    "k", make_tensor_type_proto(1, ["batch", "kv_heads", "seq", "dim"])
+                ),
+                make_value_info(
+                    "v", make_tensor_type_proto(1, ["batch", "kv_heads", "seq", "dim"])
+                ),
             ],
             [
                 make_value_info(
                     "output",
-                    make_tensor_type_proto(1, ["batch", "heads", "seq", "dim"]),
+                    make_tensor_type_proto(1, ["batch", "q_heads", "seq", "dim"]),
                 )
             ],
             [
-                numpy_helper.from_array(
-                    np.random.randn(768, 768).astype(np.float32), "k"
-                ),
-                numpy_helper.from_array(np.random.randn(768).astype(np.float32), "v"),
+                from_array(np.random.randn(1, 2, 128, 768).astype(np.float32), "k"),
+                from_array(np.random.randn(1, 2, 128, 768).astype(np.float32), "v"),
             ],
         )
         return graph
@@ -206,15 +212,13 @@ def _make_model_with_unknown_input_shape():
             "graph",
             [
                 make_value_info("q", make_tensor_type_proto(1, None)),
-                make_value_info("k", make_tensor_type_proto(1, ["hidden", "hidden"])),
-                make_value_info("v", make_tensor_type_proto(1, ["hidden"])),
+                make_value_info("k", make_tensor_type_proto(1, [1, "seq", "hidden"])),
+                make_value_info("v", make_tensor_type_proto(1, [1, "seq", "hidden"])),
             ],
             [make_value_info("output", make_tensor_type_proto(1, None))],
             [
-                numpy_helper.from_array(
-                    np.random.randn(768, 768).astype(np.float32), "k"
-                ),
-                numpy_helper.from_array(np.random.randn(768).astype(np.float32), "v"),
+                from_array(np.random.randn(1, 16, 768).astype(np.float32), "k"),
+                from_array(np.random.randn(1, 16, 768).astype(np.float32), "v"),
             ],
         )
         return graph
@@ -515,6 +519,8 @@ class TestAttentionAddKVCache:
                 ["q1", "k1", "v1"],
                 ["output1"],
                 name="attention1",
+                q_num_heads=2,
+                kv_num_heads=1,
             )
             attention2 = make_node(
                 "Attention",
@@ -526,44 +532,26 @@ class TestAttentionAddKVCache:
                 [attention1, attention2],
                 "graph",
                 [
-                    make_value_info(
-                        "q1",
-                        make_tensor_type_proto(1, ["batch", "seq", "hidden"]),
-                    ),
-                    make_value_info(
-                        "k1", make_tensor_type_proto(1, ["hidden", "hidden"])
-                    ),
-                    make_value_info("v1", make_tensor_type_proto(1, ["hidden"])),
-                    make_value_info(
-                        "q2",
-                        make_tensor_type_proto(1, ["batch", "seq", "hidden"]),
-                    ),
-                    make_value_info(
-                        "k2", make_tensor_type_proto(1, ["hidden", "hidden"])
-                    ),
-                    make_value_info("v2", make_tensor_type_proto(1, ["hidden"])),
+                    make_value_info("q1", make_tensor_type_proto(1, [1, 16, 256])),
+                    make_value_info("k1", make_tensor_type_proto(1, [1, 16, 128])),
+                    make_value_info("v1", make_tensor_type_proto(1, [1, 16, 128])),
+                    make_value_info("q2", make_tensor_type_proto(1, [1, 16, 256])),
+                    make_value_info("k2", make_tensor_type_proto(1, [1, 16, 128])),
+                    make_value_info("v2", make_tensor_type_proto(1, [1, 16, 128])),
                 ],
                 [
                     make_value_info(
-                        "output1", make_tensor_type_proto(1, [1, 384, 768])
+                        "output1", make_tensor_type_proto(1, [1, "seq", "hidden"])
                     ),
                     make_value_info(
-                        "output2", make_tensor_type_proto(1, [1, 384, 768])
+                        "output2", make_tensor_type_proto(1, [1, "seq", "hidden"])
                     ),
                 ],
                 [
-                    numpy_helper.from_array(
-                        np.random.randn(768, 768).astype(np.float32), "k1"
-                    ),
-                    numpy_helper.from_array(
-                        np.random.randn(768).astype(np.float32), "v1"
-                    ),
-                    numpy_helper.from_array(
-                        np.random.randn(768, 768).astype(np.float32), "k2"
-                    ),
-                    numpy_helper.from_array(
-                        np.random.randn(768).astype(np.float32), "v2"
-                    ),
+                    from_array(np.random.randn(1, 16, 128).astype(np.float32), "k1"),
+                    from_array(np.random.randn(1, 16, 128).astype(np.float32), "v1"),
+                    from_array(np.random.randn(1, 16, 128).astype(np.float32), "k2"),
+                    from_array(np.random.randn(1, 16, 128).astype(np.float32), "v2"),
                 ],
             )
             return graph
@@ -605,23 +593,14 @@ class TestAttentionAddKVCache:
                 [attention],
                 "graph",
                 [
-                    make_value_info(
-                        "q",
-                        make_tensor_type_proto(1, ["batch", "seq", "hidden"]),
-                    ),
-                    make_value_info(
-                        "k", make_tensor_type_proto(1, ["hidden", "hidden"])
-                    ),
-                    make_value_info("v", make_tensor_type_proto(1, ["hidden"])),
+                    make_value_info("q", make_tensor_type_proto(1, [1, 2, 16, 256])),
+                    make_value_info("k", make_tensor_type_proto(1, [1, 1, 16, 256])),
+                    make_value_info("v", make_tensor_type_proto(1, [1, 1, 16, 256])),
                 ],
-                [make_value_info("output", make_tensor_type_proto(1, [1, 384, 768]))],
+                [make_value_info("output", make_tensor_type_proto(1, [1, 2, 16, 256]))],
                 [
-                    numpy_helper.from_array(
-                        np.random.randn(768, 768).astype(np.float32), "k"
-                    ),
-                    numpy_helper.from_array(
-                        np.random.randn(768).astype(np.float32), "v"
-                    ),
+                    from_array(np.random.randn(1, 1, 16, 256).astype(np.float32), "k"),
+                    from_array(np.random.randn(1, 1, 16, 256).astype(np.float32), "v"),
                 ],
             )
             return graph
