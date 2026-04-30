@@ -509,6 +509,10 @@ class OnnxGraph(nx.DiGraph):
             raise ValueError(
                 f"dtype is required because value is not existing for {name}"
             )
+        if name in self.inputs:
+            self.input[self.inputs[name]].CopyFrom(value_info)
+        elif name in self.outputs:
+            self.output[self.outputs[name]].CopyFrom(value_info)
         self._value_info_update.append(value_info)
 
     def set_seqeuence_info(
