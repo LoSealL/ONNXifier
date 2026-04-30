@@ -116,7 +116,8 @@ def convert_graph(
     if print_passes:
         print_pass_simple(pm)
     node_names = _normalize_specify_node_names(graph, specify_node_names)
-    debug("Filtered names: %s", node_names)
+    if node_names:
+        debug("Filtered names: %s", node_names)
     graph = pm.optimize(
         graph,
         strict=strict,

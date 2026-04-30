@@ -1,5 +1,5 @@
 """
-Copyright (C) 2023-2025 The ONNXIFIER Authors.
+Copyright (C) 2023-2026 The ONNXIFIER Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -339,3 +339,43 @@ def extract_function(
         ),
     )
     return OnnxGraph(sub_model, base_dir=graph.external_base)
+
+
+def expand_constants(
+    graph: OnnxGraph, nodes: Sequence[onnx.NodeProto]
+) -> list[onnx.NodeProto]:
+    """Expand constant nodes from a list of given nodes.
+
+    Args:
+        graph (OnnxGraph): the model graph.
+        nodes (Sequence[onnx.NodeProto]): the nodes to be expanded from.
+
+    Returns:
+        list[onnx.NodeProto]: the expanded nodes with constant nodes included.
+    """
+
+    node_with_constants: list[onnx.NodeProto] = []
+    for node in nodes:
+        if node in node_with_constants:
+            continue
+        for _, input_name in enumerate(node.input):
+            if input_name in graph.initializers:
+                continue
+            if input_name in graph.inputs:
+                continue
+            # pylint: disable=protected-access
+            up_name = graph._out_to_node[input_name]
+            up_node: onnx.NodeProto = graph.nodes[up_name]["pb"]
+            if up_node in node_with_constants:
+                continue
+            ancestors = list(nx.ancestors(graph, up_name)) + [up_name]
+            if any([graph.nodes[i]["has_input"] for i in ancestors]):
+                try:
+                    # can be evaluated to constant
+                    assert evaluate_on_node(graph, up_node, input_name) is not None
+                except Exception:  # pylint: disable=broad-except
+                    continue
+            debug("Expand nodes: %s", ancestors)
+            node_with_constants.extend([graph.nodes[i]["pb"] for i in ancestors])
+        node_with_constants.append(node)
+    return node_with_constants

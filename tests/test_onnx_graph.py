@@ -379,3 +379,53 @@ def test_graph_sibling_nodes():
     assert len(sib2) == 1
     assert sib1[0].name == "cos1"
     assert sib2[0].name == "sin1"
+
+
+def test_set_value_info_for_input():
+    """Test that set_value_info updates graph input when name is in inputs."""
+    nodes = [oh.make_node("Identity", ["x"], ["y"], name="id1")]
+    model = oh.make_model(
+        oh.make_graph(
+            nodes,
+            "test_graph",
+            inputs=[oh.make_tensor_value_info("x", onnx.TensorProto.FLOAT, [10])],
+            outputs=[oh.make_tensor_value_info("y", onnx.TensorProto.FLOAT, [10])],
+        ),
+        ir_version=onnx.IR_VERSION,
+        opset_imports=[oh.make_operatorsetid("", 23)],
+    )
+    graph = OnnxGraph(model)
+
+    # Update value info for input 'x' with new shape
+    graph.set_value_info("x", shape=[20], dtype=onnx.TensorProto.FLOAT)
+
+    # Verify the input value info was updated
+    assert "x" in graph.inputs
+    input_info = graph.input[graph.inputs["x"]]
+    shape = input_info.type.tensor_type.shape
+    assert shape.dim[0].dim_value == 20
+
+
+def test_set_value_info_for_output():
+    """Test that set_value_info updates graph output when name is in outputs."""
+    nodes = [oh.make_node("Identity", ["x"], ["y"], name="id1")]
+    model = oh.make_model(
+        oh.make_graph(
+            nodes,
+            "test_graph",
+            inputs=[oh.make_tensor_value_info("x", onnx.TensorProto.FLOAT, [10])],
+            outputs=[oh.make_tensor_value_info("y", onnx.TensorProto.FLOAT, [10])],
+        ),
+        ir_version=onnx.IR_VERSION,
+        opset_imports=[oh.make_operatorsetid("", 21)],
+    )
+    graph = OnnxGraph(model)
+
+    # Update value info for output 'y' with new shape
+    graph.set_value_info("y", shape=[20], dtype=onnx.TensorProto.FLOAT)
+
+    # Verify the output value info was updated
+    assert "y" in graph.outputs
+    output_info = graph.output[graph.outputs["y"]]
+    shape = output_info.type.tensor_type.shape
+    assert shape.dim[0].dim_value == 20
