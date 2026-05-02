@@ -113,3 +113,40 @@ def float_to_half(
         if io.type.tensor_type.elem_type == TensorProto.FLOAT:
             io.type.tensor_type.elem_type = TensorProto.FLOAT16
     return graph
+
+
+@PASSES.register()
+def bfloat16_to_half(
+    graph: OnnxGraph, *, _specify_node_names: list[str] | None = None
+) -> OnnxGraph:
+    """Convert bfloat16 data to float16."""
+
+    for node in graph:
+        if _specify_node_names and node not in _specify_node_names:
+            continue
+        node_pb = graph.nodes[node]["pb"]
+        if node_pb.op_type == "Constant":
+            tensor = node_pb.attribute[0].t
+            if tensor.data_type == TensorProto.BFLOAT16:
+                array = to_array(tensor).astype("float16")
+                attr = make_attribute(key="value", value=from_array(array))
+                node_pb.attribute.pop()
+                node_pb.attribute.append(attr)
+        elif node_pb.op_type == "Cast":
+            # if cast target is bfloat16, change it to float16
+            for attr in node_pb.attribute:
+                if attr.name == "to" and attr.i == TensorProto.BFLOAT16:
+                    attr.i = TensorProto.FLOAT16
+    for init in graph.initializer:
+        if _specify_node_names and init.name not in _specify_node_names:
+            continue
+        if init.data_type == TensorProto.BFLOAT16:
+            array = to_array(init).astype("float16")
+            init.data_type = TensorProto.FLOAT16
+            init.raw_data = from_array(array).raw_data
+    for io in itertools.chain(graph.input, graph.output):
+        if _specify_node_names and io.name not in _specify_node_names:
+            continue
+        if io.type.tensor_type.elem_type == TensorProto.BFLOAT16:
+            io.type.tensor_type.elem_type = TensorProto.FLOAT16
+    return graph
