@@ -297,3 +297,60 @@ def test_float_to_half_with_resize():
             break
     assert cast_for_scale is not None
     assert cast_for_scale.attribute[0].i == onnx.TensorProto.FLOAT
+
+
+def _build_bfloat16_graph():
+    from ml_dtypes import bfloat16
+
+    const = make_node(
+        "Constant",
+        [],
+        ["const_out"],
+        name="const_bf16",
+        value=onnx.numpy_helper.from_array(
+            np.array([1.0, 2.0, 3.0], dtype=bfloat16), "const_tensor"
+        ),
+    )
+    cast = make_node(
+        "Cast",
+        ["x"],
+        ["cast_out"],
+        name="cast_to_bf16",
+        to=onnx.TensorProto.BFLOAT16,
+    )
+    add0 = make_node("Add", ["cast_out", "w"], ["sum0"], name="add0")
+    add1 = make_node("Add", ["sum0", "const_out"], ["z"], name="add1")
+    graph = make_graph(
+        [const, cast, add0, add1],
+        "test_bfloat16",
+        [make_tensor_value_info("x", onnx.TensorProto.BFLOAT16, [3])],
+        [make_tensor_value_info("z", onnx.TensorProto.BFLOAT16, [3])],
+        initializer=[
+            onnx.numpy_helper.from_array(np.array([4.0, 5.0, 6.0], dtype=bfloat16), "w")
+        ],
+    )
+    model = make_model(graph, opset_imports=[ONNXIFIER_OPSET])
+    onnx.checker.check_model(model, True)
+    return OnnxGraph(model)
+
+
+def test_bfloat16_to_half():
+    graph = _build_bfloat16_graph()
+    pm = PassManager(["bfloat16_to_half"])
+    graph = pm.optimize(graph, strict=True)
+    onnx.checker.check_model(graph.model, True)
+
+    # check constant
+    node_map = {graph.nodes[n]["pb"].name: graph.nodes[n]["pb"] for n in graph}
+    assert node_map["const_bf16"].attribute[0].t.data_type == onnx.TensorProto.FLOAT16
+
+    # check cast
+    assert node_map["cast_to_bf16"].attribute[0].i == onnx.TensorProto.FLOAT16
+
+    # check initializer
+    init_map = {i.name: i for i in graph.initializer}
+    assert init_map["w"].data_type == onnx.TensorProto.FLOAT16
+
+    # check inputs and outputs
+    assert graph.input[0].type.tensor_type.elem_type == onnx.TensorProto.FLOAT16
+    assert graph.output[0].type.tensor_type.elem_type == onnx.TensorProto.FLOAT16
