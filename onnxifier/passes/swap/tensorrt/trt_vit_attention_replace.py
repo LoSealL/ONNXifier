@@ -19,18 +19,15 @@ import numpy as np
 from onnx import NodeProto
 from onnx.helper import make_tensor_type_proto, make_value_info
 
-from ... import OnnxGraph, logger
-from ...domain.trt.ops.vit_attention_plugin import (
+from .... import OnnxGraph, logger
+from ....domain.trt.ops.vit_attention_plugin import (
     from_onnx_attention,
     vit_attention_plugin_schema,
 )
-from .. import PASSES
-from ..utils import make_constant
-from .trt_attention_replace import (
-    TRTAttentionRewriter,
-    _elem_type_from_schema,
-    _ensure_trt_opset,
-)
+from ... import PASSES
+from ...utils import make_constant
+from . import elem_type_from_schema
+from .trt_attention_replace import TRTAttentionRewriter
 
 _INPUT_NAMES = {
     "cu_seqlens": "cu_seqlens",
@@ -94,7 +91,6 @@ class TRTViTAttentionRewriter(TRTAttentionRewriter):
         }
 
         plugin_op = from_onnx_attention(node, head_size, **plugin_kwargs)
-        _ensure_trt_opset(graph)
         if not bake_cu_seqlens or not self._bake_seqlens(graph, plugin_op):
             self._add_shared_inputs(graph)
         self -= node
@@ -142,7 +138,7 @@ class TRTViTAttentionRewriter(TRTAttentionRewriter):
             graph_input = make_value_info(
                 name,
                 make_tensor_type_proto(
-                    _elem_type_from_schema(vit_attention_plugin_schema, key),
+                    elem_type_from_schema(vit_attention_plugin_schema, key),
                     _INPUT_SHAPES[key],
                 ),
             )

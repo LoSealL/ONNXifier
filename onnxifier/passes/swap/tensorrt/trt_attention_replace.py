@@ -19,16 +19,15 @@ import onnx
 from onnx import NodeProto
 from onnx.helper import make_node, make_tensor_type_proto, make_value_info
 
-from ... import OnnxGraph, logger
-from ...domain.trt import TRT_IR_DOMAIN
-from ...domain.trt.ops.attention_plugin import (
+from .... import OnnxGraph, logger
+from ....domain.trt.ops.attention_plugin import (
     attention_plugin_schema,
     from_onnx_attention,
 )
-from .. import PASSES
-from ..pattern import SingleNodePattern
-from ..rewriter import Rewriter
-from ..utils import make_constant
+from ... import PASSES
+from ...pattern import SingleNodePattern
+from ...utils import make_constant
+from . import EnsureTensorRTDomain, elem_type_from_schema
 
 _INPUT_NAMES = {
     "context_lengths": "context_lengths",
@@ -43,32 +42,8 @@ _INPUT_SHAPES: dict[str, list[str | int]] = {
 }
 
 
-def _elem_type_from_schema(schema: onnx.defs.OpSchema, input_name: str) -> int:
-    """Infer ONNX tensor element type from an OpSchema input declaration."""
-    for inp in schema.inputs:
-        if inp.name != input_name:
-            continue
-        type_str = inp.type_str
-        if not type_str.startswith("tensor(") or not type_str.endswith(")"):
-            break
-        elem_name = type_str[len("tensor(") : -1].upper()
-        return onnx.TensorProto.DataType.Value(elem_name)
-    raise ValueError(f"Cannot infer tensor element type for input '{input_name}'.")
-
-
-def _ensure_trt_opset(graph: OnnxGraph):
-    """Ensure TensorRT custom opset is declared in model opset imports."""
-    for opset in graph._model.opset_import:  # pylint: disable=protected-access
-        if (
-            opset.domain == TRT_IR_DOMAIN.domain
-            and opset.version >= TRT_IR_DOMAIN.version
-        ):
-            return
-    graph._model.opset_import.append(TRT_IR_DOMAIN)  # pylint: disable=protected-access
-
-
 @PASSES.register(name="trt_attention_replace", deps=["attention_fill_heads_and_dim"])
-class TRTAttentionRewriter(Rewriter):
+class TRTAttentionRewriter(EnsureTensorRTDomain):
     """Replace ONNX Attention node with TensorRT AttentionPlugin.
 
     This rewriter transforms a standard ONNX Attention (opset 24) node into
@@ -131,7 +106,6 @@ class TRTAttentionRewriter(Rewriter):
         }
 
         plugin_op = from_onnx_attention(node, head_size, **plugin_kwargs)
-        _ensure_trt_opset(graph)
         self._add_shared_inputs(graph)
         self._add_kv_cache_io(graph, node, plugin_op)
         self -= node
@@ -262,7 +236,7 @@ class TRTAttentionRewriter(Rewriter):
             graph_input = make_value_info(
                 name,
                 make_tensor_type_proto(
-                    _elem_type_from_schema(attention_plugin_schema, key),
+                    elem_type_from_schema(attention_plugin_schema, key),
                     shape,
                 ),
             )

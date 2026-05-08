@@ -21,14 +21,14 @@ import numpy as np
 import onnx
 from onnx import NodeProto
 
-from ... import OnnxGraph, logger
-from ...domain.trt import TRT_IR_DOMAIN
-from ...domain.trt.ops.dequantize_linear import from_onnx_dequantize_linear
-from .. import PASSES
-from ..pattern import SingleNodePattern
-from ..rewriter import Rewriter
-from ..utils import make_constant
-from .trt_attention_replace import _ensure_trt_opset
+from .... import OnnxGraph, logger
+from ....domain.trt import TRT_IR_DOMAIN
+from ....domain.trt.ops.dequantize_linear import from_onnx_dequantize_linear
+from ... import PASSES
+from ...pattern import SingleNodePattern
+from ...rewriter import Rewriter
+from ...utils import make_constant
+from . import EnsureTensorRTDomain
 
 _FLOAT_TYPES = {
     onnx.TensorProto.FLOAT,
@@ -105,7 +105,7 @@ def _quantize_from_float(
 
 
 @PASSES.register(name="trt_dequantize_linear_replace")
-class TRTDequantizeLinearRewriter(Rewriter):
+class TRTDequantizeLinearRewriter(EnsureTensorRTDomain):
     """Replace ONNX DequantizeLinear node with TensorRT DequantizeLinear.
 
     Since TRT's DequantizeLinear expects input x to be a pseudo-quantized
@@ -157,7 +157,6 @@ class TRTDequantizeLinearRewriter(Rewriter):
 
         plugin_op = from_onnx_dequantize_linear(node)
         plugin_op.input[0] = trt_x_name
-        _ensure_trt_opset(graph)
         self -= node
         self += plugin_op
 
