@@ -89,7 +89,6 @@ ignore-paths = ["tests"]
 [tool.pylint."MESSAGES CONTROL"]
 disable = [
     "logging-fstring-interpolation",
-    "import-outside-toplevel",
     "missing-module-docstring",
     "no-member",
     "no-name-in-module",
