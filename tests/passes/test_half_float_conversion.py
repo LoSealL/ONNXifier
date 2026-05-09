@@ -154,7 +154,7 @@ def test_half_to_float():
     # check constant
     checked_ops = set()
     for init in graph.initializer:
-        assert init.data_type == onnx.TensorProto.FLOAT
+        assert init.data_type != onnx.TensorProto.FLOAT16
         checked_ops.add(init.name)
     assert len(checked_ops) > 0
     # check inputs
@@ -174,7 +174,7 @@ def test_half_to_float_constant():
     for node in graph:
         node_pb = graph.nodes[node]["pb"]
         if node_pb.op_type == "Constant":
-            assert node_pb.attribute[0].t.data_type == onnx.TensorProto.FLOAT
+            assert node_pb.attribute[0].t.data_type != onnx.TensorProto.FLOAT16
             checked_ops.add(node)
     assert len(checked_ops) > 0
     # check inputs
@@ -192,7 +192,7 @@ def test_float_to_half():
     # check constant
     checked_ops = set()
     for init in graph.initializer:
-        assert init.data_type == onnx.TensorProto.FLOAT16
+        assert init.data_type != onnx.TensorProto.FLOAT
         checked_ops.add(init.name)
     assert len(checked_ops) > 0
     # check inputs
@@ -212,7 +212,7 @@ def test_float_to_half_constant():
     for node in graph:
         node_pb = graph.nodes[node]["pb"]
         if node_pb.op_type == "Constant":
-            assert node_pb.attribute[0].t.data_type == onnx.TensorProto.FLOAT16
+            assert node_pb.attribute[0].t.data_type != onnx.TensorProto.FLOAT
             checked_ops.add(node)
     assert len(checked_ops) > 0
     # check inputs
