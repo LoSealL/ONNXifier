@@ -98,7 +98,6 @@ class TRTAttentionRewriter(EnsureTensorRTDomain):
             "enable_tree_attention": enable_tree_attention,
             "enable_fp8_kv_cache": enable_fp8_kv_cache,
             "sliding_window_size": sliding_window_size,
-            "attention_pos_id": attention_pos_id,
             "k_v_scale_quant_orig": k_v_scale_quant_orig,
             "context_lengths": _INPUT_NAMES["context_lengths"],
             "rope_rotary_cos_sin": _INPUT_NAMES["rope_rotary_cos_sin"],

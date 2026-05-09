@@ -15,8 +15,12 @@ limitations under the License.
 """
 
 import onnx
+import onnxscript
 from onnx.defs import OpSchema
+from onnxscript.onnx_opset import opset23 as op
+from onnxscript.values import Opset
 
+from ...shape_inference import register_shape_inference
 from .. import TRT_IR_DOMAIN
 
 _T = "T", ["tensor(float16)", "tensor(bfloat16)", "tensor(float)"]
@@ -69,12 +73,6 @@ attention_plugin_schema = OpSchema(
         OpSchema.FormalParameter(
             name="attention_mask",
             description="Attention mask tensor (optional)",
-            type_str="tensor(int32)",
-            param_option=OpSchema.FormalParameterOption.Optional,
-        ),
-        OpSchema.FormalParameter(
-            name="attention_pos_id",
-            description="Position IDs tensor (optional)",
             type_str="tensor(int32)",
             param_option=OpSchema.FormalParameterOption.Optional,
         ),
@@ -171,7 +169,6 @@ def from_onnx_attention(
     context_lengths: str = "",
     rope_rotary_cos_sin: str = "",
     kvcache_start_index: str = "",
-    attention_pos_id: str = "",
     k_v_scale_quant_orig: str = "",
 ) -> onnx.NodeProto:
     """
@@ -213,8 +210,6 @@ def from_onnx_attention(
             Does not exist in standard ONNX Attention - use as kwarg.
         kvcache_start_index: Input name for KV cache start index tensor.
             Does not exist in standard ONNX Attention - use as kwarg.
-        attention_pos_id: Input name for position IDs tensor.
-            Does not exist in standard ONNX Attention - use as kwarg.
         k_v_scale_quant_orig: Input name for FP8 KV cache dequant scales.
             Does not exist in standard ONNX Attention - use as kwarg.
     """
@@ -245,7 +240,6 @@ def from_onnx_attention(
     op_inputs.append(attn_mask)
 
     # attention_pos_id, k_v_scale_quant_orig - from kwargs
-    op_inputs.append(attention_pos_id)
     op_inputs.append(k_v_scale_quant_orig)
     plugin_op.input.extend(_trim(op_inputs))
 
@@ -309,3 +303,42 @@ def _get_int_attribute(node: onnx.NodeProto, name: str, default: int) -> int:
         if attr.name == name:
             return attr.i
     return default
+
+
+@register_shape_inference(
+    domain=attention_plugin_schema.domain,
+    op_type=attention_plugin_schema.name,
+)
+@onnxscript.script(Opset(attention_plugin_schema.domain, 1), default_opset=op)
+def attention_plugin_shape_inference(
+    q,
+    k,
+    v,
+    past_key_value,
+    context_lengths,
+    rope_rotary_cos_sin,
+    kvcache_start_index,
+    attention_mask,
+    k_v_scale_quant_orig,
+    num_q_heads: int,
+    num_kv_heads: int,
+    head_size: int,
+    enable_tree_attention: int = 0,
+    enable_fp8_kv_cache: int = 0,
+    sliding_window_size: int = -1,
+):
+    """Shape inference for trt::AttentionPlugin.
+
+    output[0] (attn_output) follows q input shape.
+    output[1] (present_key_value) passes through past_key_value unchanged.
+    """
+
+    outs = op.Attention(
+        q,
+        k,
+        v,
+        kv_num_heads=num_kv_heads,
+        q_num_heads=num_q_heads,
+    )
+    out = outs[0]  # type: ignore
+    return out, op.Identity(past_key_value)

@@ -115,6 +115,35 @@ onnxify --print l<TAB>
 # → l1 l2 l3
 ```
 
+## 自定义算子形状推导
+
+开发者使用 **ONNXScript** 函数注册自定义域算子的形状推导。装饰器会在 `infer_shapes` 期间将函数临时插入模型，推导完成后自动清理。
+
+```python
+import onnxscript
+from onnxscript.onnx_opset import opset19 as op
+from onnxscript.values import Opset
+
+from onnxifier.domain.shape_inference import register_shape_inference
+
+@register_shape_inference("com.mycompany", "MyOp")
+@onnxscript.script(Opset("com.mycompany", 1), default_opset=op)
+def my_op_shape_infer(input_0, input_1):
+    # 为每个输出返回对应的形状
+    return op.Identity(input_0), op.Identity(input_1)
+```
+
+如果省略 domain/op_type，则从 ONNXScript 函数元数据自动推断：
+
+```python
+@register_shape_inference()  # 使用 function.name 和 function.opset.domain
+@onnxscript.script(Opset("com.mycompany", 1), default_opset=op)
+def MyOp(input_0):
+    return op.Identity(input_0)
+```
+
+详细示例请参阅 [quickstart.md](specs/001-custom-domain-shape-inference/quickstart.md)。
+
 ## TODO
 
 - [ ] [**OV**] 添加 [Loop](https://docs.openvino.ai/2024/documentation/openvino-ir-format/operation-sets/operation-specs/infrastructure/loop-5.html) 支持。

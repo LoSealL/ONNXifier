@@ -17,8 +17,8 @@ limitations under the License.
 import gc
 import os
 import traceback
-import warnings
 from collections.abc import Iterable, Sequence
+from contextlib import suppress
 from copy import deepcopy
 from io import IOBase
 from itertools import chain
@@ -66,6 +66,7 @@ class OnnxGraph(nx.DiGraph):
         self,
         model: onnx.ModelProto | None = None,
         base_dir: str | None = None,
+        infer_shape: bool = True,
     ) -> None:
         if model is None:
             super().__init__()
@@ -76,14 +77,13 @@ class OnnxGraph(nx.DiGraph):
             self._node_to_out: dict[str, Sequence[str]] = {}
             self._out_to_node: dict[str, str] = {}
             self._functions = {f.name: f for f in model.functions}
-            try:
-                graph = onnx.shape_inference.infer_shapes(model).graph
-            except onnx.shape_inference.InferenceError as ex:
-                warnings.warn(f"Inferring shape failed, value info is not set:\n {ex}")
-                graph = model.graph
-            # WA: infer_shapes could cause graph to be empty in some cases
-            if len(graph.node) == 0:
-                graph = model.graph
+            graph = model.graph
+            if infer_shape:
+                with suppress(onnx.shape_inference.InferenceError):
+                    graph = onnx.shape_inference.infer_shapes(model).graph
+                # WA: infer_shapes could cause graph to be empty in some cases
+                if len(graph.node) == 0:
+                    graph = model.graph
             self.inputs = {i.name: n for n, i in enumerate(graph.input)}
             self.outputs = {i.name: n for n, i in enumerate(graph.output)}
             # read-only value info

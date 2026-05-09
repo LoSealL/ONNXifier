@@ -15,9 +15,12 @@ limitations under the License.
 """
 
 import onnx
+import onnxscript
 from onnx.defs import OpSchema
 from onnx.helper import make_attribute
+from onnxscript.onnx_opset import opset19 as op
 
+from ....domain.shape_inference import register_shape_inference
 from .. import TRT_IR_DOMAIN
 
 _T = "T", ["tensor(float16)", "tensor(bfloat16)", "tensor(float)"]
@@ -116,3 +119,34 @@ gated_delta_rule_schema = OpSchema(
 )
 
 onnx.defs.register_schema(gated_delta_rule_schema)
+
+
+@register_shape_inference(
+    domain=gated_delta_rule_schema.domain,
+    op_type=gated_delta_rule_schema.name,
+)
+@onnxscript.script(default_opset=op)
+def gated_delta_rule_shape_infer(
+    q,
+    k,
+    v,
+    gate,
+    beta,
+    past_ssm_state,
+    context_lengths,
+    k_dim: int,
+    v_dim: int,
+    num_v_heads: int,
+    use_qk_l2norm: int = 1,
+):
+    """Shape inference for trt::GatedDeltaRule.
+
+    output[0] follows v input shape (input[2]).
+    output[1] passes through past_ssm_state unchanged.
+    """
+
+    q_shape = op.Shape(q)  # type: ignore
+    v_shape = op.Shape(v)  # type: ignore
+    out_shape = op.Concat(q_shape[:-1], v_shape[-1:], axis=0)  # type: ignore
+    out = op.CastLike(op.ConstantOfShape(out_shape), q)  # type: ignore
+    return out, op.Identity(past_ssm_state)  # type: ignore

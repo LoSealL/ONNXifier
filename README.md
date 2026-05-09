@@ -115,6 +115,47 @@ onnxify --print l<TAB>
 # → l1 l2 l3
 ```
 
+## Custom Domain Shape Inference
+
+ONNXifier supports shape inference for custom domain ops (e.g., `trt::CausalConv1d`, `com.microsoft::MyOp`) through a registration API.
+
+### Usage
+
+Shape inference for domain ops is automatic when using the `--infer-shapes` flag:
+
+```shell
+onnxify model_with_trt_ops.onnx --infer-shapes
+```
+
+### Registering Shape Inference for Custom Ops
+
+Developers register shape inference using **ONNXScript** functions. The decorator inserts the function into the model during `infer_shapes`, then cleans it up afterward.
+
+```python
+import onnxscript
+from onnxscript.onnx_opset import opset19 as op
+from onnxscript.values import Opset
+
+from onnxifier.domain.shape_inference import register_shape_inference
+
+@register_shape_inference("com.mycompany", "MyOp")
+@onnxscript.script(Opset("com.mycompany", 1), default_opset=op)
+def my_op_shape_infer(input_0, input_1):
+    # Return shapes for each output
+    return op.Identity(input_0), op.Identity(input_1)
+```
+
+If domain/op_type are omitted, they are inferred from the ONNXScript function metadata:
+
+```python
+@register_shape_inference()  # Uses function.name and function.opset.domain
+@onnxscript.script(Opset("com.mycompany", 1), default_opset=op)
+def MyOp(input_0):
+    return op.Identity(input_0)
+```
+
+See [quickstart.md](specs/001-custom-domain-shape-inference/quickstart.md) for detailed examples.
+
 ## TODO
 
 - [ ] [**OV**] Add [Loop](https://docs.openvino.ai/2024/documentation/openvino-ir-format/operation-sets/operation-specs/infrastructure/loop-5.html) support.

@@ -15,9 +15,13 @@ limitations under the License.
 """
 
 import onnx
+import onnxscript
 from onnx.defs import OpSchema
 from onnx.helper import make_attribute
+from onnxscript.onnx_opset import opset19 as op
+from onnxscript.values import Opset
 
+from ....domain.shape_inference import register_shape_inference
 from .. import TRT_IR_DOMAIN
 
 _T = "T", ["tensor(float16)", "tensor(bfloat16)", "tensor(float)"]
@@ -102,3 +106,38 @@ causal_conv1d_schema = OpSchema(
 )
 
 onnx.defs.register_schema(causal_conv1d_schema)
+
+
+@register_shape_inference(op_type=causal_conv1d_schema.name)
+@onnxscript.script(Opset(causal_conv1d_schema.domain, 1), default_opset=op)
+def causal_conv1d_shape_inference(
+    x,
+    weight,
+    bias,
+    past_conv_state,
+    context_lengths,
+    padding: int,
+    groups: int,
+    dilation: int = 1,
+    stride: int = 1,
+):
+    """Shape inference for trt::CausalConv1d.
+
+    Returns x directly so ONNX shape inference copies x's shape to
+    output[0].  output[1] passes through past_conv_state unchanged.
+    """
+    ## WA1: onnx can't support assignment like
+    ## op.Constant(value_ints=[dilation, dilation])
+    ## WA2: expression below can't pass shape inference, it will give
+    ## [unk_1, unk_2, ...] because complex computation is not supported.
+    ## We ignore pads and stride here. Assume it's padding same with
+    ## stride=1 always.
+
+    # x_shape = op.Shape(x)
+    # w_shape = op.Shape(weight)
+    # length = op.Unsqueeze(x_shape[-1] + padding - w_shape[-1] + 1, axes=0)
+    # channels = op.Unsqueeze(w_shape[1] * groups, axes=0)
+    # batch = op.Unsqueeze(x_shape[0], axes=0)
+    # out_shape = op.Concat(batch, channels, length, axis=0)
+    # out = op.CastLike(op.ConstantOfShape(out_shape), x)
+    return x, op.Identity(past_conv_state)

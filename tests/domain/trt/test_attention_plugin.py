@@ -16,10 +16,16 @@ limitations under the License.
 
 # pylint: disable=missing-function-docstring
 
+import numpy as np
 import onnx
 from onnx import AttributeProto
 
-from onnxifier.domain.trt.ops.attention_plugin import from_onnx_attention
+from onnxifier.domain.shape_inference import get_shape_inference
+from onnxifier.domain.trt.ops.attention_plugin import (
+    attention_plugin_schema,
+    attention_plugin_shape_inference,
+    from_onnx_attention,
+)
 
 
 def _make_attention_node(
@@ -146,15 +152,6 @@ class TestFromOnnxAttention:
 
         assert plugin_op.input[6] == "kv_start_idx"
 
-    def test_attention_pos_id_from_kwarg(self):
-        op = _make_attention_node(
-            inputs=["q", "k", "v"],
-            outputs=["output"],
-        )
-        plugin_op = from_onnx_attention(op, 64, attention_pos_id="pos_ids")
-
-        assert plugin_op.input[8] == "pos_ids"
-
     def test_k_v_scale_quant_orig_from_kwarg(self):
         op = _make_attention_node(
             inputs=["q", "k", "v"],
@@ -162,7 +159,7 @@ class TestFromOnnxAttention:
         )
         plugin_op = from_onnx_attention(op, 64, k_v_scale_quant_orig="kv_scales")
 
-        assert plugin_op.input[9] == "kv_scales"
+        assert plugin_op.input[8] == "kv_scales"
 
     def test_enable_tree_attention_kwarg(self):
         op = _make_attention_node(
@@ -243,7 +240,6 @@ class TestFromOnnxAttention:
             context_lengths="ctx_lens",
             rope_rotary_cos_sin="rope",
             kvcache_start_index="kv_idx",
-            attention_pos_id="pos",
             k_v_scale_quant_orig="scales",
         )
 
@@ -256,7 +252,6 @@ class TestFromOnnxAttention:
             "rope",
             "kv_idx",
             "attn_mask",
-            "pos",
             "scales",
         ]
 
@@ -269,3 +264,36 @@ class TestFromOnnxAttention:
         assert attr_dict["sliding_window_size"] == 256
 
         assert plugin_op.output == ["attention_out", "present_key"]
+
+
+def test_shape_inference_onnxscript():
+    onnxfunc = attention_plugin_shape_inference.to_function_proto()
+    assert "num_q_heads" in onnxfunc.attribute
+    assert "num_kv_heads" in onnxfunc.attribute
+    assert "head_size" in onnxfunc.attribute
+    out, kvcache = attention_plugin_shape_inference(
+        q=np.zeros([1, 256, 2048]),
+        k=np.zeros([1, 256, 512]),
+        v=np.zeros([1, 256, 512]),
+        past_key_value=np.zeros([1, 2, 4, 256, 32]),
+        context_lengths=np.array([16]),
+        rope_rotary_cos_sin=np.zeros([1, 16, 32]),
+        kvcache_start_index=np.array([0]),
+        attention_mask=None,
+        k_v_scale_quant_orig=None,
+        num_q_heads=8,
+        num_kv_heads=2,
+        head_size=256,
+    )
+    # Simplified shape inference returns x directly, preserving input shape
+    assert out.shape == (1, 256, 2048)
+    assert kvcache.shape == (1, 2, 4, 256, 32)
+
+    onnxfunc = get_shape_inference(
+        attention_plugin_schema.domain, attention_plugin_schema.name
+    )
+    assert onnxfunc is not None
+    assert onnxfunc.domain == attention_plugin_schema.domain
+    assert onnxfunc.name == attention_plugin_schema.name
+    assert len(onnxfunc.input) == len(attention_plugin_schema.inputs)
+    assert len(onnxfunc.output) == len(attention_plugin_schema.outputs)

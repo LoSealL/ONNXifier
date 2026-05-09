@@ -16,10 +16,16 @@ limitations under the License.
 
 # pylint: disable=missing-function-docstring
 
+import numpy as np
 import onnx
 from onnx import AttributeProto
 
-from onnxifier.domain.trt.ops.vit_attention_plugin import from_onnx_attention
+from onnxifier.domain.shape_inference import get_shape_inference
+from onnxifier.domain.trt.ops.vit_attention_plugin import (
+    from_onnx_attention,
+    vit_attention_plugin_schema,
+    vit_attention_plugin_shape_inference,
+)
 
 
 def _make_attention_node(
@@ -146,3 +152,29 @@ class TestFromOnnxAttention:
         attr_dict = {a.name: a.i for a in plugin_op.attribute}
         assert attr_dict["num_heads"] == 12
         assert attr_dict["head_size"] == 64
+
+
+def test_shape_inference_onnxscript():
+    onnxfunc = vit_attention_plugin_shape_inference.to_function_proto()
+    assert "num_heads" in onnxfunc.attribute
+    assert "head_size" in onnxfunc.attribute
+    out = vit_attention_plugin_shape_inference(
+        np.zeros([1, 8, 64, 32]),
+        np.zeros([1, 8, 64, 32]),
+        np.zeros([1, 8, 64, 32]),
+        None,
+        None,
+        num_heads=8,
+        head_size=32,
+    )
+    # Simplified shape inference returns x directly, preserving input shape
+    assert out.shape == (1, 8, 64, 32)
+
+    onnxfunc = get_shape_inference(
+        vit_attention_plugin_schema.domain, vit_attention_plugin_schema.name
+    )
+    assert onnxfunc is not None
+    assert onnxfunc.domain == vit_attention_plugin_schema.domain
+    assert onnxfunc.name == vit_attention_plugin_schema.name
+    assert len(onnxfunc.input) == len(vit_attention_plugin_schema.inputs)
+    assert len(onnxfunc.output) == len(vit_attention_plugin_schema.outputs)
