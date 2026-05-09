@@ -16,9 +16,12 @@ limitations under the License.
 
 # pylint: disable=arguments-differ
 
+from contextlib import suppress
+
 from onnx import NodeProto, shape_inference
 from onnx.tools.update_model_dims import update_inputs_outputs_dims
 
+from ...domain.shape_inference import TemporaryFunctionGenerator
 from ...graph import OnnxGraph
 from ...logger import debug, warning
 from .. import PASSES, Registry, Rewriter, get_pass_manager
@@ -96,16 +99,30 @@ def infer_shape(
         model = update_inputs_outputs_dims(
             model, input_dims=input_shapes, output_dims=output_shapes
         )
-    model = shape_inference.infer_shapes(model, data_prop=True)
-    graph = OnnxGraph(model, base_dir=graph.external_base)
-    # Patch for infer_shapes bugs
-    pm = get_pass_manager(list(INFERSHAPE_PATCH))
-    graph = pm.optimize(graph)
-    need_second_infer = False
-    if sum(i.num_rewrites for i in pm.activated) > 0:
-        need_second_infer = True
-    if need_second_infer:
-        model = graph.model
-        model = shape_inference.infer_shapes(model, data_prop=True)
-        return OnnxGraph(model, base_dir=graph.external_base)
+
+    # Initialize temporary function generator
+    temp_generator = TemporaryFunctionGenerator()
+    temp_functions = temp_generator.generate_for_model(model)
+    debug(f"Generated {len(temp_functions)} temporary functions for shape inference")
+    try:
+        with suppress(shape_inference.InferenceError):
+            # Run standard ONNX shape inference (uses temporary functions)
+            model = shape_inference.infer_shapes(model, data_prop=True)
+        graph = OnnxGraph(model, base_dir=graph.external_base, infer_shape=False)
+
+        # Patch for infer_shapes bugs
+        pm = get_pass_manager(list(INFERSHAPE_PATCH))
+        graph = pm.optimize(graph)
+        need_second_infer = False
+        if sum(i.num_rewrites for i in pm.activated) > 0:
+            need_second_infer = True
+        if need_second_infer:
+            model = graph.model
+            with suppress(shape_inference.InferenceError):
+                model = shape_inference.infer_shapes(model, data_prop=True)
+            graph = OnnxGraph(model, base_dir=graph.external_base, infer_shape=False)
+    finally:
+        # Post-process: cleanup temporary functions (guaranteed by try/finally)
+        temp_generator.cleanup(graph, temp_functions)
+        debug(f"Cleaned up {len(temp_functions)} temporary functions")
     return graph

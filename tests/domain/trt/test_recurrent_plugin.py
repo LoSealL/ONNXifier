@@ -15,6 +15,7 @@ limitations under the License.
 """
 
 # pylint: disable=redefined-outer-name
+import numpy as np
 import onnx
 from onnx import TensorProto
 from onnx.helper import (
@@ -26,7 +27,11 @@ from onnx.helper import (
 )
 
 from onnxifier import ONNXIFIER_IR_VERSION, ONNXIFIER_OPSET
-from onnxifier.domain.trt.ops.recurrent_plugin import gated_delta_rule_schema
+from onnxifier.domain.shape_inference import get_shape_inference
+from onnxifier.domain.trt.ops.recurrent_plugin import (
+    gated_delta_rule_schema,
+    gated_delta_rule_shape_infer,
+)
 
 
 def test_node_schema_required_attr():
@@ -111,3 +116,32 @@ def test_node_schema_required_io():
         ],
     )
     onnx.checker.check_model(model, full_check=True)
+
+
+def test_gated_delta_rule_shape_inference():
+    onnxfunc = gated_delta_rule_shape_infer.to_function_proto()
+    assert "k_dim" in onnxfunc.attribute
+    assert "v_dim" in onnxfunc.attribute
+
+    out, state = gated_delta_rule_shape_infer(
+        q=np.zeros([1, 256, 16, 128]),
+        k=np.zeros([1, 256, 16, 128]),
+        v=np.zeros([1, 256, 16, 32]),
+        gate=np.zeros([1, 256, 16]),
+        beta=np.zeros([1, 256, 16]),
+        past_ssm_state=np.zeros([1, 16, 128, 32]),
+        context_lengths=np.array([1]),
+        k_dim=128,
+        v_dim=32,
+        num_v_heads=16,
+    )
+    assert out.shape == (1, 256, 16, 32)
+    assert state.shape == (1, 16, 128, 32)
+
+    onnxfunc = get_shape_inference(
+        gated_delta_rule_schema.domain, gated_delta_rule_schema.name
+    )
+    assert onnxfunc.domain == gated_delta_rule_schema.domain
+    assert onnxfunc.name == gated_delta_rule_schema.name
+    assert len(onnxfunc.input) == len(gated_delta_rule_schema.inputs)
+    assert len(onnxfunc.output) == len(gated_delta_rule_schema.outputs)

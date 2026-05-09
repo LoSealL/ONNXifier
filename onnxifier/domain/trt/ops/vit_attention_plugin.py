@@ -15,8 +15,12 @@ limitations under the License.
 """
 
 import onnx
+import onnxscript
 from onnx.defs import OpSchema
+from onnxscript.onnx_opset import opset23 as op
+from onnxscript.values import Opset
 
+from ...shape_inference import register_shape_inference
 from .. import TRT_IR_DOMAIN
 from .attention_plugin import _get_int_attribute, _trim
 
@@ -165,3 +169,22 @@ def from_onnx_attention(
     plugin_op.output.append(op.output[0])
 
     return plugin_op
+
+
+@register_shape_inference(
+    domain=vit_attention_plugin_schema.domain,
+    op_type=vit_attention_plugin_schema.name,
+)
+@onnxscript.script(Opset(vit_attention_plugin_schema.domain, 1), default_opset=op)
+def vit_attention_plugin_shape_inference(
+    q,
+    k,
+    v,
+    cu_seqlens,
+    max_seqlen_carrier,
+    num_heads: int,
+    head_size: int,
+):
+    """Shape inference for trt::ViTAttentionPlugin."""
+
+    return op.Identity(q)
