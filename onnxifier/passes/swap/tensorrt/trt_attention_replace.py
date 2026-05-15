@@ -92,6 +92,9 @@ class TRTAttentionRewriter(EnsureTensorRTDomain):
         if not self._transpose_qkv_inputs(graph, node, head_size):
             logger.debug(f"Can't transpose qkv inputs, skip node: {node.name}")
             return
+        if not self._transpose_outputs(graph, node, head_size):
+            logger.debug(f"Can't transpose output, skip node: {node.name}")
+            return
 
         # Build kwargs with actual input names
         plugin_kwargs: dict = {
@@ -215,6 +218,34 @@ class TRTAttentionRewriter(EnsureTensorRTDomain):
 
         if converted_nodes:
             self += converted_nodes
+        return True
+
+    def _transpose_outputs(self, graph: OnnxGraph, node: NodeProto, head_size: int):
+        out_shape = graph.tensor_shape(node.output[0])
+        if len(out_shape) == 3:
+            return True
+        # reshape to [B, S, H, D]
+        q_heads = self.get_attribute(node, "q_num_heads", 1)
+        shape_cst = make_constant(
+            f"{node.name}/output0/reshape/shape",
+            np.array([out_shape[0], -1, q_heads, head_size], np.int64),
+        )
+        reshape = make_node(
+            "Reshape",
+            [f"{node.name}/output0/reshape_Input0", shape_cst.output[0]],
+            [f"{node.name}/output0/reshape_Output0"],
+            name=f"{node.name}/output0/reshape",
+        )
+        # transpose output from [B*, H, S, D] to [B*, S, H, D]
+        trans = make_node(
+            "Transpose",
+            [reshape.output[0]],
+            [node.output[0]],
+            name=f"{node.name}/transpose",
+            perm=[0, 2, 1, 3],
+        )
+        node.output[0] = reshape.input[0]
+        self += [shape_cst, reshape, trans]
         return True
 
     def _add_shared_inputs(self, graph: OnnxGraph):

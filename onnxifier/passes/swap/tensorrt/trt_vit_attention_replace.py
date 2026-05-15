@@ -83,6 +83,9 @@ class TRTViTAttentionRewriter(TRTAttentionRewriter):
         if not self._transpose_qkv_inputs(graph, node, head_size):
             logger.debug(f"Can't transpose qkv inputs, skip node: {node.name}")
             return
+        if not self._transpose_outputs(graph, node, head_size):
+            logger.debug(f"Can't transpose output, skip node: {node.name}")
+            return
 
         # Build kwargs with actual input names
         plugin_kwargs = {
@@ -124,7 +127,7 @@ class TRTViTAttentionRewriter(TRTAttentionRewriter):
         node.input[3] = cu_seqlens.output[0]
         self += cu_seqlens
         seqlen_carrier = make_constant(
-            "max_seqlen_carrier", np.array([seq_len], dtype=np.int32)
+            "max_seqlen_carrier", np.zeros([seq_len], dtype=np.int32)
         )
         node.input[4] = seqlen_carrier.output[0]
         self += seqlen_carrier

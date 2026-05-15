@@ -116,7 +116,6 @@ class TRTDequantizeLinearRewriter(EnsureTensorRTDomain):
 
     def __init__(self):
         pattern = SingleNodePattern("DequantizeLinear")
-        pattern.domain = ""
         super().__init__(pattern=pattern)
 
     def rewrite(self, graph: OnnxGraph, nodes: list[NodeProto]):
