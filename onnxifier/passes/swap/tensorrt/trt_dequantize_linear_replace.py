@@ -55,11 +55,27 @@ def _expand_for_block_size(
 ) -> np.ndarray:
     """Expand arr by repeating elements along axis to match target_shape."""
     if block_size <= 0:
-        return arr
+        return _reshape_per_axis(arr, target_shape, axis)
     expanded = np.repeat(arr, block_size, axis=axis)
     slices = [slice(None)] * expanded.ndim
     slices[axis] = slice(0, target_shape[axis])
     return expanded[tuple(slices)]
+
+
+def _reshape_per_axis(
+    arr: np.ndarray,
+    target_shape: tuple[int, ...],
+    axis: int,
+) -> np.ndarray:
+    """Reshape 1-D per-axis scale/zp to broadcast-compatible shape.
+
+    e.g. scale [K] with axis=0, target [K, N] → reshape to [K, 1].
+    """
+    if arr.ndim <= 1 and arr.size > 1:
+        shape = [1] * len(target_shape)
+        shape[axis] = arr.shape[0]
+        return arr.reshape(shape)
+    return arr
 
 
 def _dequantize_to_float(
@@ -90,18 +106,59 @@ def _quantize_from_float(
     axis: int,
     block_size: int,
     out_dtype: int,
-) -> np.ndarray:
+) -> tuple[np.ndarray, np.ndarray]:
     """Compute quantized values from pseudo-quantized float x."""
     target_shape = x.shape
-    scale = _expand_for_block_size(scale, target_shape, axis, block_size)
-    if zero_point is not None:
-        zero_point = _expand_for_block_size(zero_point, target_shape, axis, block_size)
+    near_zero = np.abs(scale) < np.finfo(scale.dtype).tiny
+    if near_zero.any():
+        logger.warning(
+            "%d scale values are zero or near-zero; "
+            "those channels will be quantized to 0",
+            int(near_zero.sum()),
+        )
+        scale = scale.copy()
+        scale[near_zero] = 1.0
 
     np_dtype, qmin, qmax = _get_np_dtype_and_range(out_dtype)
-    x_inv = x.astype(np.float32) / scale.astype(np.float32)
+    expand_scale = _expand_for_block_size(scale, target_shape, axis, block_size)
+    if zero_point is not None:
+        zero_point = _expand_for_block_size(zero_point, target_shape, axis, block_size)
+    expand_mask = _expand_for_block_size(near_zero, target_shape, axis, block_size)
+    x = np.where(expand_mask, 0.0, x)
+    scale = np.where(near_zero, 0.0, scale)  # remask scale to zero
+    x_inv = x.astype(np.float32) / expand_scale.astype(np.float32)
     if zero_point is not None:
         x_inv = x_inv + zero_point.astype(np.float32)
-    return np.rint(x_inv).clip(qmin, qmax).astype(np_dtype)
+    return np.rint(x_inv).clip(qmin, qmax).astype(np_dtype), scale
+
+
+def _infer_axis(
+    x_shape: tuple[int, ...],
+    scale_shape: tuple[int, ...],
+    block_size: int,
+) -> int:
+    """Infer the quantization axis from scale and x shapes.
+
+    For per-axis quantization, scale shape is either 1-D (e.g. [K])
+    or N-D with axis dim matching x and other dims = 1 (e.g. [K, 1]).
+    For blocked quantization, scale_shape[axis] == x_shape[axis] // block_size.
+    """
+    if block_size <= 0:
+        if len(scale_shape) == 1 and scale_shape[0] > 1:
+            for a, s in enumerate(x_shape):
+                if s == scale_shape[0]:
+                    return a
+        if len(scale_shape) == len(x_shape):
+            for a, s in enumerate(x_shape):
+                if scale_shape[a] == s and scale_shape[a] > 1:
+                    remaining = [i for i in range(len(x_shape)) if i != a]
+                    if all(scale_shape[r] == 1 for r in remaining):
+                        return a
+        return 1
+    for a, s in enumerate(x_shape):
+        if scale_shape[a] * block_size == s:
+            return a
+    return 1
 
 
 @PASSES.register(name="trt_dequantize_linear_replace")
@@ -193,21 +250,25 @@ class TRTDequantizeLinearToOnnxRewriter(Rewriter):
         zp_name = node.input[2] if len(node.input) > 2 else ""
 
         onnx_x_name = x_name
+        axis = None
+        block_size = 0
         if x_dtype in _FLOAT_TYPES:
             x_val = self.get_value(x_name)
             scale_val = self.get_value(scale_name) if scale_name else None
             zp_val = self.get_value(zp_name) if zp_name else None
             if x_val is not None and scale_val is not None:
-                axis = self.get_attribute(node, "axis", 1)
                 block_size = self.get_attribute(node, "block_size", 0)
-                quant_val = _quantize_from_float(
+                axis = _infer_axis(x_val.shape, scale_val.shape, block_size)
+                quant_val, scale_val = _quantize_from_float(
                     x_val, scale_val, zp_val, axis, block_size, to_dtype
                 )
-                const_node = make_constant(f"{node.name}/quant_val", quant_val)
-                self += const_node
+                quant_cst = make_constant(f"{node.name}/weight", quant_val)
+                scale_cst = make_constant(f"{node.name}/scale", scale_val)
+                self += [quant_cst, scale_cst]
                 if x_shape is not None:
-                    graph.set_value_info(const_node.output[0], x_shape, to_dtype)
-                onnx_x_name = const_node.output[0]
+                    graph.set_value_info(quant_cst.output[0], x_shape, to_dtype)
+                onnx_x_name = quant_cst.output[0]
+                scale_name = scale_cst.output[0]
 
         onnx_op = onnx.NodeProto()
         onnx_op.op_type = "DequantizeLinear"
@@ -220,9 +281,18 @@ class TRTDequantizeLinearToOnnxRewriter(Rewriter):
             onnx_op.input.append(zp_name)
         onnx_op.output.extend(node.output)
 
-        for attr in node.attribute:
-            if attr.name in ("axis", "block_size"):
-                onnx_op.attribute.append(attr)
+        if axis is not None:
+            axis_attr = onnx.AttributeProto()
+            axis_attr.name = "axis"
+            axis_attr.type = onnx.AttributeProto.INT
+            axis_attr.i = axis
+            onnx_op.attribute.append(axis_attr)
+        if block_size > 0:
+            bs_attr = onnx.AttributeProto()
+            bs_attr.name = "block_size"
+            bs_attr.type = onnx.AttributeProto.INT
+            bs_attr.i = block_size
+            onnx_op.attribute.append(bs_attr)
 
         self -= node
         self += onnx_op
