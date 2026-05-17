@@ -458,7 +458,7 @@ class StartEndPointPattern(Pattern):
                         matched_nodes.update(i.nodes[j]["pb"] for j in i)
                     else:
                         matched_nodes.add(graph.nodes[i]["pb"])
-            except nx.NodeNotFound:
+            except (nx.NodeNotFound, nx.NetworkXNoPath):
                 continue
             yield list(matched_nodes)
 

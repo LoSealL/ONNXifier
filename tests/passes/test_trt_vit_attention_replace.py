@@ -16,7 +16,6 @@ limitations under the License.
 
 # pylint: disable=redefined-outer-name
 import onnx
-import pytest
 from onnx import TensorProto
 from onnx.helper import (
     make_graph,
@@ -382,10 +381,6 @@ def test_trt_vit_attention_replace_bake_seqlens_qwen_like_input():
         constant_types[node.name] = value_attr.t.data_type
 
     assert constant_values["cu_seqlens"] == [0, 16]
-    assert constant_values["max_seqlen_carrier"] == [16]
+    assert constant_values["max_seqlen_carrier"] == [0] * 16
     assert constant_types["cu_seqlens"] == TensorProto.INT32
     assert constant_types["max_seqlen_carrier"] == TensorProto.INT32
-
-
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])

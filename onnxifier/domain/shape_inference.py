@@ -22,7 +22,7 @@ import onnx
 from onnxscript.values import OnnxFunction
 
 from ..graph import OnnxGraph
-from ..logger import warning
+from ..logger import debug, warning
 
 
 class ShapeInferenceRegistry:
@@ -178,6 +178,7 @@ class TemporaryFunctionGenerator:
 
             registered_ops.add(key)
             ops_needing_temps.append((node.domain, node.op_type, node))
+            debug(f"generate shape infer function for {key}")
 
         if not ops_needing_temps:
             return []

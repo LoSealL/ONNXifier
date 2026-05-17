@@ -16,7 +16,10 @@ limitations under the License.
 
 import onnx
 from onnx.defs import OpSchema
+from onnxscript import script
+from onnxscript.onnx_opset import opset23 as op
 
+from ...shape_inference import register_shape_inference
 from .. import TRT_IR_DOMAIN
 from .attention_plugin import _get_int_attribute
 
@@ -150,3 +153,20 @@ def from_onnx_dequantize_linear(op: onnx.NodeProto) -> onnx.NodeProto:
     plugin_op.attribute.append(block_size_attr)
 
     return plugin_op
+
+
+@register_shape_inference(
+    domain=dequantize_linear_schema.domain,
+    # WA: remove "trt::" prefix
+    op_type="DequantizeLinear",
+)
+@script(default_opset=op)
+def trt_dequantize_linear_shape_infer(
+    x,
+    scales,
+    zero_point,
+    axis: int = 1,
+    block_size: int = 0,
+):
+    """Shape inference for trt::DequantizeLinear (modelopt)."""
+    return x

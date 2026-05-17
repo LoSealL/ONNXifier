@@ -44,6 +44,7 @@ def _lazy_register_trt_schema():
     from .trt.ops import (
         attention_plugin,
         dequantize_linear,
+        int4_gemm_plugin,
         mamba_plugin,
         vit_attention_plugin,
     )
@@ -63,6 +64,11 @@ def _lazy_register_trt_schema():
         dequantize_linear.dequantize_linear_schema.domain,
     ):
         onnx.defs.register_schema(dequantize_linear.dequantize_linear_schema)
+    if not onnx.defs.has(
+        int4_gemm_plugin.int4_gemm_plugin_schema.name,
+        int4_gemm_plugin.int4_gemm_plugin_schema.domain,
+    ):
+        onnx.defs.register_schema(int4_gemm_plugin.int4_gemm_plugin_schema)
     if not onnx.defs.has(
         mamba_plugin.causal_conv1d_schema.name,
         mamba_plugin.causal_conv1d_schema.domain,

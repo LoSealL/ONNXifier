@@ -15,7 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-__version__ = "2.2.0"
+__version__ = "2.2.1"
 
 import os
 import re
@@ -106,6 +106,7 @@ def convert_graph(
     if isinstance(model, (str, os.PathLike)):
         base_dir = os.path.dirname(model)
         model = onnx.load_model(model, format=onnx_format, load_external_data=False)
+        detect_domain(model)
     else:
         model = deepcopy(model)
     graph = OnnxGraph(model, base_dir=base_dir)
