@@ -20,27 +20,41 @@ from onnx.onnx_pb import NodeProto
 
 from ...domain.trt.ops.int4_gemm_plugin import int4_gemm_plugin_schema
 from ...graph import OnnxGraph
-from ...logger import debug, warning
+from ...logger import debug
 from .. import PASSES
 from ..pattern import SingleNodePattern
 from ..rewriter import Rewriter
 from ..utils import make_constant
 
 
-@PASSES.register("fuse_int4_groupwise_gemm", deps=["infer_shape"])
+@PASSES.register(
+    "fuse_int4_groupwise_gemm",
+    deps=["infer_shape", "trt_dequantize_linear_to_onnx"],
+)
 class FuseInt4GroupwiseGemmRewriter(Rewriter):
-    """Fuse DequantizeLinear -> ** -> MatMul into Int4GroupwiseGemmPlugin.
+    """Fuse DequantizeLinear -> (** ->) MatMul into Int4GroupwiseGemmPlugin.
 
-    Before:
+    The pass runs after ``trt_dequantize_linear_to_onnx``, which converts
+    ``trt::DequantizeLinear`` back to ONNX ``DequantizeLinear`` (domain ``""``).
+    Only two layout patterns are supported:
 
-        DequantizeLinear
-              |  (weight path, possibly through Transpose/Reshape)
-              v
-           MatMul  <-- activation
+    - **axis=0, non-transposed**: ``DequantizeLinear[axis=0] → MatMul``
+      Weight is ``[K, N]`` quantized along axis 0 (K dimension).
+    - **axis=1, transposed**: ``DequantizeLinear[axis=1] → Transpose → MatMul``
+      Weight is ``[K, N]`` quantized along axis 1 (N dimension), then
+      transposed to ``[N, K]`` for MatMul consumption.
+
+    Before (axis=0):
+
+        DequantizeLinear[axis=0] → MatMul ← activation
+
+    Before (axis=1):
+
+        DequantizeLinear[axis=1] → Transpose → MatMul ← activation
 
     After:
 
-        Int4GroupwiseGemmPlugin(input, qweight_packed, scales)
+        Int4GroupwiseGemmPlugin(activation, qweight_packed, scales)
     """
 
     def __init__(self):
@@ -60,23 +74,47 @@ class FuseInt4GroupwiseGemmRewriter(Rewriter):
             except ValueError:
                 debug("can't get weight shape of %s", node.name)
                 return
+            # Determine whether the weight path includes a 2D transpose.
+            # Transposed path: DQ[axis=1] → (Reshape →) Transpose[1,0] → MatMul
+            # Non-transposed path: DQ[axis=0] → MatMul
+            transposed = self._has_transpose(path_nodes)
 
             gemm_k = weight_shape[-2]
             gemm_n = weight_shape[-1]
             block_size = self.get_attribute(dq_node, "block_size", 0)
             axis = self.get_attribute(dq_node, "axis", 1)
+            qweight = self.get_value_or_die(dq_node.input[0])
+            scales = self.get_value_or_die(dq_node.input[1])
 
-            qweight_float = self.get_value_or_die(dq_node.input[0])
-            scales_float = self.get_value_or_die(dq_node.input[1])
-            packed = _pack_int4(dq_node, qweight_float, scales_float, block_size, axis)
+            # Prepare qweight for _pack_int4 which expects (N, K) layout.
+            # _pack_int4 packs along N (output features) with interleave/stride.
+            if transposed:
+                # axis=1 required: DQ scales along N dim of [K, N] weight.
+                # qweight arrives as [K, N], reshape to [N, K] for packing.
+                # scales: [K, N//block_size] → reshape to [K//block_size, N]
+                assert axis == 1
+                qweight = qweight.reshape([gemm_n, gemm_k])
+                scales = scales.reshape([-1, gemm_k // block_size]).T
+            else:
+                # axis=0 required: DQ scales along K dim of [K, N] weight.
+                # qweight arrives as [K, N], transpose to [N, K] for packing.
+                # scales: [K//block_size, N] — already in final layout.
+                assert axis == 0
+                qweight = qweight.reshape([gemm_k, gemm_n]).T
+                scales = scales.reshape([gemm_k // block_size, -1])
+            packed = _pack_int4(qweight)
+            # Final scales shape: [gemm_k // block_size, gemm_n]
+            scales = scales.reshape([gemm_k // block_size, gemm_n])
+
             packed_const = make_constant(f"{node.name}/qweight_packed", packed)
+            scales_const = make_constant(f"{node.name}/scales", scales)
 
             plugin = make_node(
                 int4_gemm_plugin_schema.name,
                 inputs=[
                     node.input[act_idx],
                     packed_const.output[0],
-                    dq_node.input[1],
+                    scales_const.output[0],
                 ],
                 outputs=[node.output[0]],
                 domain=int4_gemm_plugin_schema.domain,
@@ -85,12 +123,17 @@ class FuseInt4GroupwiseGemmRewriter(Rewriter):
                 gemm_k=gemm_k,
                 group_size=block_size,
             )
-            self += [plugin, packed_const]
+            self += [plugin, packed_const, scales_const]
             self -= [node, dq_node, *path_nodes]
             return
 
     def _walk_to_dq(self, tensor_name: str) -> tuple[NodeProto | None, list[NodeProto]]:
-        """Walk upstream from tensor_name to find a trt::DequantizeLinear.
+        """Walk upstream from tensor_name to find a DequantizeLinear producer.
+
+        After ``trt_dequantize_linear_to_onnx`` runs, the DQ node has
+        domain ``""`` (standard ONNX), not ``"trt"``.  Intermediate
+        Transpose or Reshape nodes on the path are collected as
+        ``path_nodes``.
 
         Returns (dq_node, intermediate_nodes_on_path) or (None, []).
         """
@@ -102,7 +145,7 @@ class FuseInt4GroupwiseGemmRewriter(Rewriter):
 
         producer: NodeProto = graph.nodes[producer_name]["pb"]
 
-        if producer.op_type == "DequantizeLinear" and producer.domain == "trt":
+        if producer.op_type == "DequantizeLinear":
             return producer, []
 
         if producer.op_type in ("Transpose", "Reshape"):
@@ -113,47 +156,74 @@ class FuseInt4GroupwiseGemmRewriter(Rewriter):
 
         return None, []
 
+    @staticmethod
+    def _has_transpose(path_nodes: list[NodeProto]) -> bool:
+        for n in path_nodes:
+            if n.op_type == "Transpose":
+                for a in n.attribute:
+                    if a.name == "perm" and list(a.ints) == [1, 0]:
+                        return True
+        return False
 
-def _pack_int4(
-    node: NodeProto,
-    weight: np.ndarray,
-    scales: np.ndarray,
-    group_size: int,
-    axis: int = 0,
-) -> np.ndarray:
-    """Quantize pseudo-quantized float weight to int4 and pack to int8.
 
-    Packing is done along the quantization axis: two consecutive int4 values
-    along axis are stored in one int8 byte (low nibble = first element,
-    high nibble = second element).
+def _pack_int4(qweight: np.ndarray) -> np.ndarray:
+    """Pack int4 weight values into interleaved int8 storage for GPU kernels.
+
+    The packing follows the GPTQ kernel layout used by TensorRT:
+
+    1. Shift int4 values from [-8,7] to unsigned [0,15] (``+8``).
+    2. Reorder within each 32-element K-block: swap inner (4×4×2) groups
+       so that consecutive weight pairs align for 4-bit nibble packing.
+    3. Interleave every 4 rows (``interleave=4``): rows 0-3 are grouped
+       into a single super-row so the GPU can dequantize 4 rows at once.
+    4. Pack 4 unsigned 4-bit values into one int16:  ``v0 | v1<<4 | v2<<8 | v3<<12``.
+    5. View the int16 result as int8, halving the row dimension.
+
+    Parameters
+    ----------
+    qweight : np.ndarray
+        Signed int4 weight values in range ``[-8, 7]`` with shape ``(N, K)``.
+        ``N`` is the output-feature dimension (rows) and ``K`` is the
+        input-feature dimension (columns).  Both must be divisible by
+        ``interleave=4`` and ``kstride=64`` (so ``K`` must be a multiple of 64).
+
+    Returns
+    -------
+    np.ndarray
+        Packed weight with dtype ``int8`` and shape ``(N//2, K)``.
+        Each int8 byte stores one nibble pair; the logical layout is
+        ``(N//4, K)`` in int16 where each int16 holds 4 nibbles.
     """
-    if group_size > 0 and scales.shape[axis] * group_size == weight.shape[axis]:
-        scales = np.repeat(scales, group_size, axis=axis)
+    interleave = 4
+    kstride = 64
+    n = qweight.shape[0]
+    k = qweight.shape[1]
 
-    zero_mask = scales == 0
-    near_zero_mask = np.abs(scales) < np.finfo(scales.dtype).tiny
-    if zero_mask.any() or near_zero_mask.any():
-        count = int(zero_mask.sum() + near_zero_mask.sum())
-        warning(
-            "node %s: %d scale values are zero or near-zero; "
-            "int4 quantization may produce Inf/NaN values",
-            node.name,
-            count,
-        )
+    # Shift signed int4 [-8,7] to unsigned [0,15] for nibble packing
+    qweight = qweight.astype(np.int16) + 8
 
-    int_vals = np.rint(weight / scales).astype(np.int32)
-    int_vals = np.clip(int_vals, -8, 7).astype(np.int8)
+    # Split K into blocks of 32 and reorder within each block
+    # Original layout: (N, K//32, 4, 4, 2) — 4 groups of 4×2 elements
+    # Swap inner groups: transpose dims 2↔3 so pairs align for nibbles
+    packed = qweight.reshape(n, k // 32, 32)
+    packed = packed.reshape(n, k // 32, 4, 4, 2).transpose(0, 1, 3, 2, 4)
+    # Reorder 8-weight micro-blocks for fast GPU dequantization stride
+    packed = packed.reshape(n, k // 32, 4, 4, 2).transpose(0, 1, 2, 4, 3)
 
-    uint4 = (int_vals + 8).astype(np.uint8)
+    # Interleave every 4 rows: group (N//4, 4) then reorder to
+    # (N//4, K//64, 4, 64) so rows 0-3 share a super-row
+    packed = packed.reshape(n // interleave, interleave, k // kstride, kstride)
+    packed = packed.transpose(0, 2, 1, 3)
+    packed = packed.reshape(n // interleave, k // kstride, kstride, interleave)
 
-    dim_size = uint4.shape[axis]
-    if dim_size % 2 != 0:
-        raise ValueError(
-            f"Dimension {axis} must be even for int4 packing, got {dim_size}"
-        )
+    # Pack 4 unsigned 4-bit values into one int16:
+    #   nibble0 (row0) | nibble1 (row1)<<4 | nibble2 (row2)<<8 | nibble3 (row3)<<12
+    packed = (
+        packed[..., 0]
+        | (packed[..., 1] << 4)
+        | (packed[..., 2] << 8)
+        | (packed[..., 3] << 12)
+    )
 
-    even = np.take(uint4, np.arange(0, dim_size, 2), axis=axis)
-    odd = np.take(uint4, np.arange(1, dim_size, 2), axis=axis)
-    packed = ((odd << 4) | even).view(np.int8)
-
-    return packed
+    # Final layout: (N//4, K) as int16, viewed as (N//2, K) int8
+    return packed.reshape(n // interleave, k).view(np.int8).reshape(n // 2, k)
