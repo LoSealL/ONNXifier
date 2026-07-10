@@ -19,6 +19,7 @@ import onnx
 from onnx.helper import make_node
 from onnx.onnx_pb import NodeProto
 
+from ......passes.utils import make_constant
 from .. import OnnxGraph, cast_in
 from . import OP_CONVERT, BaseNodeConversion
 
@@ -38,6 +39,19 @@ class Squeeze(BaseNodeConversion):
             if np.prod(numerical_shape) == 0:  # type: ignore
                 ori_node.input.pop(1)
             elif axes_type != onnx.TensorProto.INT64:
+                if not numerical_shape:
+                    # int is illegal, unsqueeze to ints
+                    axes = make_constant(
+                        f"{ori_node.name}/unsqueeze/axes", np.array([0], dtype=np.int64)
+                    )
+                    unsqz = make_node(
+                        "Unsqueeze",
+                        inputs=[ori_node.input[1], axes.output[0]],
+                        outputs=[ori_node.input[1] + "_unsqueezed"],
+                        name=ori_node.name + "/unsqueeze",
+                    )
+                    ori_node.input[1] = unsqz.output[0]
+                    self += [axes, unsqz]
                 # add a cast
                 self += cast_in(ori_node, 1, onnx.TensorProto.INT64)
         return make_node(
