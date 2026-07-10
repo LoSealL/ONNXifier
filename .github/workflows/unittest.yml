@@ -24,4 +24,8 @@ jobs:
           uv sync --dev -U
       - name: Run pytest and coverage
         run: |
-          uv run pytest --cov=onnxifier tests
+          uv run pytest --cov=onnxifier --cov-branch --cov-report=xml tests
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
