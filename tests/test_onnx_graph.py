@@ -16,6 +16,7 @@ limitations under the License.
 
 # pylint: disable=missing-function-docstring
 
+import os
 import random
 import tempfile
 from pathlib import Path
@@ -339,7 +340,7 @@ def test_graph_save_as_external(tmp_path):
         ext_graph = OnnxGraph(model)
     ext_data = list(ext_graph.external_data)
     assert len(ext_data) == 1
-    assert ext_data[0] == Path(tmp_path) / "model"
+    assert ext_data[0] == Path(tmp_path) / "model.onnx.data"
     ext_graph.restore_tensors_from_external()
     external_tensors = [
         t
@@ -349,6 +350,165 @@ def test_graph_save_as_external(tmp_path):
     assert len(external_tensors) == 0
     # save to a new location because graph has been restored
     ext_graph.save(tmp_path / "model.onnx", save_as_external_data=True)
+
+
+def test_external_base_resolved_absolute(tmp_path):
+    """A relative base must resolve to absolute at set time, so data
+    resolution keeps working after the process chdirs elsewhere."""
+    g = onnx.helper.make_graph(
+        nodes=[],
+        name="test",
+        inputs=[],
+        outputs=[],
+        initializer=[
+            onnx.numpy_helper.from_array(np.ones([1024], dtype=np.float32), "big"),
+        ],
+    )
+    model = onnx.helper.make_model(g, opset_imports=[ONNXIFIER_OPSET])
+    (tmp_path / "sub").mkdir()
+    with chdir(tmp_path / "sub"):
+        graph = OnnxGraph(model)
+        graph.save("model.onnx", save_as_external_data=True)
+        rel_base = os.path.relpath(tmp_path / "sub")
+        loaded = OnnxGraph(
+            onnx.load_model("model.onnx", load_external_data=False), base_dir=rel_base
+        )
+    assert Path(loaded.external_base).is_absolute()
+    # from a different cwd the data must still resolve and restore
+    with chdir(tmp_path):
+        loaded.restore_tensors_from_external()
+    big = onnx.numpy_helper.to_array(loaded.model.graph.initializer[0])
+    assert big.shape == (1024,)
+
+
+def test_convert_tensors_rebase(tmp_path):
+    """Saving to an absolute location outside the current base re-bases
+    instead of raising, and the stored location stays relative."""
+    g = onnx.helper.make_graph(
+        nodes=[],
+        name="test",
+        inputs=[],
+        outputs=[],
+        initializer=[
+            onnx.numpy_helper.from_array(np.ones([1024], dtype=np.float32), "big"),
+        ],
+    )
+    model = onnx.helper.make_model(g, opset_imports=[ONNXIFIER_OPSET])
+    src, dst = tmp_path / "src", tmp_path / "dst"
+    src.mkdir()
+    dst.mkdir()
+    with chdir(src):
+        graph = OnnxGraph(model)
+        graph.save("model.onnx", save_as_external_data=True)
+        # old code raised ValueError here
+        graph.save(dst / "model.onnx", save_as_external_data=True)
+    reloaded = onnx.load_model(dst / "model.onnx", load_external_data=False)
+    for t in onnx.external_data_helper._get_all_tensors(reloaded):
+        if onnx.external_data_helper.uses_external_data(t):
+            loc = onnx.external_data_helper.ExternalDataInfo(t).location
+            assert not Path(loc).is_absolute()
+
+
+def test_onnx_subgraph_filters_unreachable_functions():
+    """Sub-models carry only functions the subgraph calls (transitively)."""
+    nodes = [
+        oh.make_node(
+            "Constant",
+            [],
+            ["c"],
+            value=onnx.numpy_helper.from_array(np.array([1], dtype=np.int64), "c"),
+            name="C0",
+        ),
+        oh.make_node("Shape", ["X"], ["s"], name="S0"),
+        oh.make_node("Gather", ["s", "c"], ["g"], name="G0"),
+        oh.make_node("MyFn", ["g"], ["y"], domain="hyper", name="call0"),
+        oh.make_node("NestedFn", ["y"], ["z"], domain="hyper", name="call1"),
+    ]
+    graph = oh.make_graph(
+        nodes,
+        "t",
+        [oh.make_tensor_value_info("X", onnx.TensorProto.FLOAT, [2, 2])],
+        [oh.make_tensor_value_info("z", onnx.TensorProto.FLOAT, [2, 2])],
+    )
+    opsets = [oh.make_operatorsetid("", 23), oh.make_operatorsetid("hyper", 1)]
+    # unrelated function with an op the reference evaluator cannot implement
+    gelu = oh.make_function(
+        "hyper",
+        "UnrelatedGelu",
+        ["a"],
+        ["b"],
+        [oh.make_node("Gelu", ["a"], ["b"], name="fn/gelu")],
+        opsets,
+    )
+    my_fn = oh.make_function(
+        "hyper",
+        "MyFn",
+        ["a"],
+        ["b"],
+        [oh.make_node("Neg", ["a"], ["b"], name="fn/neg")],
+        opsets,
+    )
+    nested = oh.make_function(
+        "hyper",
+        "NestedFn",
+        ["a"],
+        ["b"],
+        [oh.make_node("MyFn", ["a"], ["b"], domain="hyper", name="fn/call")],
+        opsets,
+    )
+    model = oh.make_model(graph, opset_imports=opsets, functions=[gelu, my_fn, nested])
+    g = OnnxGraph(model)
+
+    # subgraph without the calls: no function attached
+    sub = g.onnx_subgraph(["C0", "S0", "G0"])
+    assert set(sub.functions) == set()
+
+    # subgraph with the calls: callees attached transitively, unrelated not
+    sub = g.onnx_subgraph(["C0", "S0", "G0", "call0", "call1"])
+    assert set(sub.functions) == {"MyFn", "NestedFn"}
+
+
+def test_model_orders_subgraph_outer_scope_refs():
+    """Serialization must emit outer-scope producers before the If that
+    references them from a branch, even without an explicit edge."""
+    then_g = oh.make_graph(
+        [oh.make_node("Neg", ["x_out"], ["y"], name="then/neg")],
+        "then",
+        [],
+        [oh.make_tensor_value_info("y", onnx.TensorProto.FLOAT, [2])],
+    )
+    else_g = oh.make_graph(
+        [oh.make_node("Identity", ["x_out"], ["y"], name="else/id")],
+        "else",
+        [],
+        [oh.make_tensor_value_info("y", onnx.TensorProto.FLOAT, [2])],
+    )
+    nodes = [
+        oh.make_node(
+            "If", ["cond"], ["y"], then_branch=then_g, else_branch=else_g, name="if0"
+        ),
+        # only the If's branch references this producer
+        oh.make_node("Mul", ["a", "b"], ["x_out"], name="mul0"),
+    ]
+    graph = oh.make_graph(
+        nodes,
+        "t",
+        [
+            oh.make_tensor_value_info("a", onnx.TensorProto.FLOAT, [2]),
+            oh.make_tensor_value_info("b", onnx.TensorProto.FLOAT, [2]),
+            oh.make_tensor_value_info("cond", onnx.TensorProto.BOOL, [1]),
+        ],
+        [oh.make_tensor_value_info("y", onnx.TensorProto.FLOAT, [2])],
+    )
+    model = oh.make_model(graph, opset_imports=[ONNXIFIER_OPSET])
+    g = OnnxGraph(model)
+    edges_before = g.number_of_edges()
+    serialized = g.model
+    names = [n.name for n in serialized.graph.node]
+    assert names.index("mul0") < names.index("if0")
+    onnx.checker.check_model(serialized)
+    # implicit edges must not leak into the graph
+    assert g.number_of_edges() == edges_before
 
 
 def test_graph_sibling_nodes():

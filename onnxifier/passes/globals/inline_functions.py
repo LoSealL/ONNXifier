@@ -101,11 +101,19 @@ class InlineFunctionsRewriter(Rewriter):
             for j, node_input in enumerate(n.input):
                 if node_input in func.input:
                     n.input[j] = node.input[list(func.input).index(node_input)]
+                elif node_input in func.output:
+                    # a func output consumed inside the body must use the
+                    # call-site output name, matching its producer below
+                    n.input[j] = node.output[list(func.output).index(node_input)]
                 else:
                     n.input[j] = f"{tag}/{n.input[j]}"
         for n in func_nodes:
             for j, node_output in enumerate(n.output):
-                if node_output in func.output:
+                if node_output in func.input:
+                    # a func input rewritten inside the body must use the
+                    # call-site input name, matching its consumers above
+                    n.output[j] = node.input[list(func.input).index(node_output)]
+                elif node_output in func.output:
                     n.output[j] = node.output[list(func.output).index(node_output)]
                 else:
                     n.output[j] = f"{tag}/{n.output[j]}"
