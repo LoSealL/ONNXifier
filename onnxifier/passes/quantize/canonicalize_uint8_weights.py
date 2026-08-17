@@ -56,8 +56,8 @@ class CanonicalizeUint8WeightsRewriter(Rewriter):
         channel_axis = 1 if conv_node.op_type == "ConvTranspose" else 0
         expand_axis = np.arange(x.ndim).tolist()
         expand_axis.pop(channel_axis)
-        x_scale = np.expand_dims(x_scale, axis=expand_axis)
-        x_zp = np.expand_dims(x_zp, axis=expand_axis)
+        x_scale = np.expand_dims(x_scale, axis=tuple(expand_axis))
+        x_zp = np.expand_dims(x_zp, axis=tuple(expand_axis))
         fx = (x.astype(np.float32) - x_zp) * x_scale
         x_max = np.abs(fx)
         for i in expand_axis:
@@ -67,7 +67,7 @@ class CanonicalizeUint8WeightsRewriter(Rewriter):
         x_new_scale[x_new_scale == 0] = 1
         x_new_zp = np.zeros_like(x_zp).reshape([-1]).astype(np.int8)
         x_new = (
-            (fx / np.expand_dims(x_new_scale, axis=expand_axis))
+            (fx / np.expand_dims(x_new_scale, axis=tuple(expand_axis)))
             .round()
             .clip(-128, 127)
             .astype(np.int8)

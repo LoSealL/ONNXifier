@@ -183,7 +183,7 @@ class ResizeToConvTransposedRewriter(Rewriter):
         kernels = np.clip(kernels, 0, 1)
         kernel = kernels[0]
         for d, k in enumerate(kernels[1:]):
-            k = np.expand_dims(k, axis=list(-np.arange(1, d + 2)))
+            k = np.expand_dims(k, axis=tuple(-i for i in range(1, d + 2)))
             kernel = kernel[..., None] @ k.T
         return kernel.astype(np.float32)
 
