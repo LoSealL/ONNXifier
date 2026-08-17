@@ -741,20 +741,25 @@ class OnnxGraph(nx.DiGraph):
         edges: list[tuple[str, str]] = []
         for name, info in self.nodes.items():
             for attr in info["pb"].attribute:
-                if not attr.HasField("g"):
-                    continue
-                inner = {o for bn in attr.g.node for o in bn.output}
-                for bn in attr.g.node:
-                    for ref in bn.input:
-                        producer = self._out_to_node.get(ref)
-                        if (
-                            ref not in inner
-                            and producer is not None
-                            and producer != name
-                            and not self.has_edge(producer, name)
-                        ):
-                            self.add_edge(producer, name)
-                            edges.append((producer, name))
+                if attr.HasField("g"):
+                    edges.extend(self._branch_scope_edges(name, attr.g))
+        return edges
+
+    def _branch_scope_edges(self, name: str, branch: onnx.GraphProto):
+        """Scope edges for one subgraph attribute of node `name`."""
+        inner = {o for bn in branch.node for o in bn.output}
+        edges = []
+        for bn in branch.node:
+            for ref in bn.input:
+                producer = self._out_to_node.get(ref)
+                if (
+                    ref not in inner
+                    and producer is not None
+                    and producer != name
+                    and not self.has_edge(producer, name)
+                ):
+                    self.add_edge(producer, name)
+                    edges.append((producer, name))
         return edges
 
     @property

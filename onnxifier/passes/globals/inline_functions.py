@@ -81,12 +81,13 @@ class InlineFunctionsRewriter(Rewriter):
         if node.op_type not in graph.functions:
             raise RuntimeError(f"function {node.op_type} not found in the graph")
 
+        node_names = []
         try:
-            node_names = json.loads(node.doc_string)
-            assert isinstance(node_names, list)
-            assert all(map(lambda x: isinstance(x, str), node_names))
-        except Exception:
-            node_names = []
+            parsed = json.loads(node.doc_string)
+        except (json.JSONDecodeError, ValueError):
+            parsed = None
+        if isinstance(parsed, list) and all(isinstance(x, str) for x in parsed):
+            node_names = parsed
         if len(node_names) == 0 and not force:
             return
 
