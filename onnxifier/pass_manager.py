@@ -20,7 +20,7 @@ from collections import OrderedDict, defaultdict
 from collections.abc import Mapping, Sequence, Set
 from functools import partial
 from itertools import chain
-from typing import Any
+from typing import Any, TypeAlias
 
 import networkx as nx
 from onnx import FunctionProto, NodeProto, ValueInfoProto
@@ -72,7 +72,7 @@ def _apply_pass(rewriter, g, specify_node_names):
 
 
 # graph name: (domain, graph, graph callers)
-type _GraphLevel = dict[str, tuple[str, OnnxGraph, list[str]]]
+_GraphLevel: TypeAlias = dict[str, tuple[str, OnnxGraph, list[str]]]
 
 
 class PassManager:

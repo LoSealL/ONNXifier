@@ -17,7 +17,7 @@ limitations under the License.
 import inspect
 from collections.abc import Callable, Iterator, Sequence
 from pathlib import Path
-from typing import Optional, Protocol, TypeVar, cast
+from typing import Generic, Optional, Protocol, TypeVar, cast
 
 from tabulate import tabulate
 
@@ -37,7 +37,7 @@ T = TypeVar("T", bound=GraphNode)
 F = TypeVar("F", bound=Callable)
 
 
-class FuncInterfaceWrapper[T: GraphNode]:
+class FuncInterfaceWrapper(Generic[T]):
     def __init__(
         self,
         func: Callable,
@@ -58,7 +58,7 @@ class FuncInterfaceWrapper[T: GraphNode]:
         return cast(T, self.__FUNC)
 
 
-class Registry[T: GraphNode]:
+class Registry(Generic[T]):
     """A simple registry object to hold objects from others
 
     Samples::

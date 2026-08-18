@@ -172,5 +172,6 @@ def test_resize_to_convtranspose_linear(input_tensors, ctm_params, scale_factor)
 
     slices = [slice(scale_factor - 1, -scale_factor + 1)] * (input_tensors.ndim - 2)
     # psnr
-    psnr = 10 * np.log10(255**2 / np.mean((y[..., *slices] - y_[..., *slices]) ** 2))
+    crop = (..., *slices)
+    psnr = 10 * np.log10(255**2 / np.mean((y[crop] - y_[crop]) ** 2))
     assert psnr >= 30, f"PSNR: {psnr:.2f} dB"

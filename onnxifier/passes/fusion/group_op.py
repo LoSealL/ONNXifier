@@ -15,6 +15,7 @@ limitations under the License.
 """
 
 from collections.abc import Mapping, MutableMapping
+from typing import TypeAlias
 
 import networkx as nx
 from onnx import NodeProto
@@ -25,8 +26,8 @@ from ...logger import debug
 from .. import PASSES
 
 DOMAIN = "org.onnxifier"
-type HierType = Mapping[str, str | HierType]
-type MutableHierType = MutableMapping[str, str | MutableHierType]
+HierType: TypeAlias = "Mapping[str, str | HierType]"
+MutableHierType: TypeAlias = "MutableMapping[str, str | MutableHierType]"
 
 
 def _is_unique_constant(graph: OnnxGraph, node: NodeProto) -> bool:
