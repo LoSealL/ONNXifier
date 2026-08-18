@@ -81,12 +81,13 @@ class InlineFunctionsRewriter(Rewriter):
         if node.op_type not in graph.functions:
             raise RuntimeError(f"function {node.op_type} not found in the graph")
 
+        node_names = []
         try:
-            node_names = json.loads(node.doc_string)
-            assert isinstance(node_names, list)
-            assert all(map(lambda x: isinstance(x, str), node_names))
-        except Exception:
-            node_names = []
+            parsed = json.loads(node.doc_string)
+        except (json.JSONDecodeError, ValueError):
+            parsed = None
+        if isinstance(parsed, list) and all(isinstance(x, str) for x in parsed):
+            node_names = parsed
         if len(node_names) == 0 and not force:
             return
 
@@ -101,11 +102,19 @@ class InlineFunctionsRewriter(Rewriter):
             for j, node_input in enumerate(n.input):
                 if node_input in func.input:
                     n.input[j] = node.input[list(func.input).index(node_input)]
+                elif node_input in func.output:
+                    # a func output consumed inside the body must use the
+                    # call-site output name, matching its producer below
+                    n.input[j] = node.output[list(func.output).index(node_input)]
                 else:
                     n.input[j] = f"{tag}/{n.input[j]}"
         for n in func_nodes:
             for j, node_output in enumerate(n.output):
-                if node_output in func.output:
+                if node_output in func.input:
+                    # a func input rewritten inside the body must use the
+                    # call-site input name, matching its consumers above
+                    n.output[j] = node.input[list(func.input).index(node_output)]
+                elif node_output in func.output:
                     n.output[j] = node.output[list(func.output).index(node_output)]
                 else:
                     n.output[j] = f"{tag}/{n.output[j]}"

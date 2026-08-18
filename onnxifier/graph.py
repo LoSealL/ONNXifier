@@ -115,7 +115,10 @@ class OnnxGraph(nx.DiGraph):
         if base_dir == "":
             # WA: actually `basepath` is not used in current onnx
             base_dir = Path.cwd().as_posix()
-        return base_dir
+        if base_dir is None:
+            return None
+        # store absolute so later joins survive a chdir
+        return Path(base_dir).resolve().as_posix()
 
     def _add_onnx_node_internal(self, node: onnx.NodeProto) -> None:
         if not node.HasField("name"):
@@ -315,6 +318,16 @@ class OnnxGraph(nx.DiGraph):
             subonnx.input.append(
                 make_value_info(input_name, make_tensor_type_proto(dtype, shape))
             )
+        # attach only functions reachable from the subgraph: the reference
+        # evaluator must implement every attached function body
+        reachable: set[str] = set()
+        pending = {n.op_type for n in subonnx.node}
+        while pending:
+            fname = pending.pop()
+            if fname in reachable or fname not in self.functions:
+                continue
+            reachable.add(fname)
+            pending.update(n.op_type for n in self.functions[fname].node)
         sub_model = make_model(
             subonnx,
             doc_string=self._model.doc_string,
@@ -324,7 +337,7 @@ class OnnxGraph(nx.DiGraph):
             opset_imports=self._model.opset_import,
             producer_name=self._model.producer_name,
             producer_version=self._model.producer_version,
-            functions=self.functions.values(),
+            functions=[self.functions[fname] for fname in reachable],
         )
         return OnnxGraph(sub_model, base_dir=self.external_base)
 
@@ -654,13 +667,16 @@ class OnnxGraph(nx.DiGraph):
         """
         location = Path(location)
         if not self._external_base:
-            self._external_base = Path.cwd().as_posix()
             if location.is_absolute():
-                self._external_base = location.parent.as_posix()
-        if location.is_absolute() and location.is_relative_to(self._external_base):
+                self._external_base = location.parent.resolve().as_posix()
+            else:
+                self._external_base = Path.cwd().resolve().as_posix()
+        if location.is_absolute():
+            if not location.is_relative_to(self._external_base):
+                # re-base: restore still-external tensors so they follow
+                self.restore_tensors_from_external()
+                self._external_base = location.parent.resolve().as_posix()
             location = location.relative_to(self._external_base)
-        elif location.is_absolute():
-            raise ValueError(f"absolute location {location} must be relative to cwd.")
         # recreate the file
         with open(Path(self._external_base) / location, "wb"):
             pass
@@ -705,7 +721,7 @@ class OnnxGraph(nx.DiGraph):
                 Defaults to "model_data".
         """
         if not self._external_base:
-            self._external_base = Path.cwd().as_posix()
+            self._external_base = Path.cwd().resolve().as_posix()
         location = Path(location)
         self.convert_tensors_to_external(location=location)
 
@@ -717,6 +733,34 @@ class OnnxGraph(nx.DiGraph):
         for tensor in self._get_all_tensors():
             if edh.uses_external_data(tensor) and tensor.HasField("raw_data"):
                 tensor.ClearField("raw_data")
+
+    def _subgraph_scope_edges(self) -> list[tuple[str, str]]:
+        """Edges from If/Loop/Scan branch inputs to their outer-scope
+        producers; invisible to the node-input DAG, needed to keep a plain
+        topological sort checker-clean."""
+        edges: list[tuple[str, str]] = []
+        for name, info in self.nodes.items():
+            for attr in info["pb"].attribute:
+                if attr.HasField("g"):
+                    edges.extend(self._branch_scope_edges(name, attr.g))
+        return edges
+
+    def _branch_scope_edges(self, name: str, branch: onnx.GraphProto):
+        """Scope edges for one subgraph attribute of node `name`."""
+        inner = {o for bn in branch.node for o in bn.output}
+        edges = []
+        for bn in branch.node:
+            for ref in bn.input:
+                producer = self._out_to_node.get(ref)
+                if (
+                    ref not in inner
+                    and producer is not None
+                    and producer != name
+                    and not self.has_edge(producer, name)
+                ):
+                    self.add_edge(producer, name)
+                    edges.append((producer, name))
+        return edges
 
     @property
     def model(self) -> onnx.ModelProto:
@@ -732,13 +776,26 @@ class OnnxGraph(nx.DiGraph):
         graph.ClearField("value_info")
         # check cycles
         if not nx.is_directed_acyclic_graph(self):
-            node_gen = iter(self)
             for cycle in nx.simple_cycles(self, length_bound=10):
                 error(f"Cycle detected: {' -> '.join(cycle)}")
+            implicit = []
+            node_gen: Iterable[str] = iter(self)
         else:
-            node_gen = nx.topological_sort(self)
-        for n in node_gen:
-            graph.node.append(self.nodes[n]["pb"])
+            implicit = self._subgraph_scope_edges()
+            if implicit and not nx.is_directed_acyclic_graph(self):
+                error(
+                    "Cycle detected after binding subgraph outer-scope "
+                    "references; fall back to insertion order."
+                )
+                node_gen = iter(self)
+            else:
+                node_gen = nx.topological_sort(self)
+        try:
+            for n in node_gen:
+                graph.node.append(self.nodes[n]["pb"])
+        finally:
+            for edge in implicit:
+                self.remove_edge(*edge)
         graph.value_info.extend(self._value_info_update)
         model = make_model(
             graph,
@@ -774,7 +831,8 @@ class OnnxGraph(nx.DiGraph):
                     .replace(" ", "")
                 )
             else:
-                location = Path(model_path).resolve().with_suffix("")
+                # match the torch exporter's sidecar name
+                location = Path(model_path).resolve().with_suffix(".onnx.data")
             self.restore_tensors_from_external()
             self.convert_tensors_to_external(location=location)
         else:
