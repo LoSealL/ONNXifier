@@ -234,7 +234,9 @@ class TestMain:
             with pytest.raises(SystemExit) as exc_info:
                 main()
             assert exc_info.value.code == 0
-            mock_pass_manager.print.assert_called_once_with("custom_pass")
+            mock_pass_manager.print.assert_called_once_with(
+                "custom_pass", False, "table"
+            )
 
     @patch("onnxifier.__main__.set_level")
     @patch("onnxifier.__main__.convert_graph")
