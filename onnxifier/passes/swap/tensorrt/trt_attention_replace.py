@@ -214,7 +214,33 @@ class TRTAttentionRewriter(EnsureTensorRTDomain):
                     ),
                 )
             )
-            node.input[idx] = converted_nodes[-1].output[0]
+
+            # Barrier against a TensorRT fusion bug: when the reshaped view of a
+            # producer (e.g. a Reshape-of-Reshape around a cancelled transpose
+            # pair) feeds the plugin directly, the builder may bind the plugin
+            # input to a stale buffer. An explicit elementwise op forces a real
+            # materialization of the tensor.
+            _, tensor_dtype = graph.tensor_info(input_name)
+            np_dtype = onnx.helper.tensor_dtype_to_np_dtype(
+                tensor_dtype
+                if tensor_dtype != onnx.TensorProto.UNDEFINED
+                else onnx.TensorProto.FLOAT16
+            )
+            zero_name = f"{base}/zero"
+            zero_node = make_constant(zero_name, np.zeros([1], dtype=np_dtype))
+            barrier_name = f"{base}/barrier_Output0"
+            converted_nodes.extend(
+                (
+                    zero_node,
+                    make_node(
+                        "Add",
+                        [converted_nodes[-1].output[0], zero_node.output[0]],
+                        [barrier_name],
+                        name=f"{base}/barrier",
+                    ),
+                )
+            )
+            node.input[idx] = barrier_name
 
         if converted_nodes:
             self += converted_nodes
