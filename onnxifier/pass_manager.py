@@ -364,29 +364,40 @@ class PassManager:
         return function
 
     @classmethod
-    def print_all(cls):
-        """Print the name of all passes."""
-        print(PASSES, flush=True)
+    def print_all(cls, full: bool = False, fmt: str = "table"):
+        """Print the name of all passes.
+
+        Args:
+            full (bool): include the rewriter docstring (manual).
+            fmt (str): output format, ``table``, ``csv`` or ``json``.
+        """
+        print(PASSES.to_format(fmt, full), flush=True)
 
     @classmethod
-    def print_l1(cls):
+    def print_l1(cls, full: bool = False, fmt: str = "table"):
         """Print the name of all L1 passes."""
-        print(L1, flush=True)
+        print(L1.to_format(fmt, full), flush=True)
 
     @classmethod
-    def print_l2(cls):
+    def print_l2(cls, full: bool = False, fmt: str = "table"):
         """Print the name of all L2 passes."""
-        print(L2, flush=True)
+        print(L2.to_format(fmt, full), flush=True)
 
     @classmethod
-    def print_l3(cls):
+    def print_l3(cls, full: bool = False, fmt: str = "table"):
         """Print the name of all L3 passes."""
-        print(L3, flush=True)
+        print(L3.to_format(fmt, full), flush=True)
 
     @classmethod
-    def print(cls, names: str | list[str]):
-        """Print a specific pass or a set of passes."""
-        print(PASSES.child(names), flush=True)
+    def print(cls, names: str | list[str], full: bool = False, fmt: str = "table"):
+        """Print a specific pass or a set of passes.
+
+        Args:
+            names (str | List[str]): pass name(s) to print.
+            full (bool): include the rewriter docstring (manual).
+            fmt (str): output format, ``table``, ``csv`` or ``json``.
+        """
+        print(PASSES.child(names).to_format(fmt, full), flush=True)
 
     def __repr__(self) -> str:
         return tabulate(

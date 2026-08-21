@@ -45,9 +45,3 @@ ONNXifier is a Python CLI tool that converts IR formats (OpenVINO, TensorRT, etc
 
 - Run in virtualenv via `uv`: `uv run onnxify ...`, `uv run python ...`
 - If current git workspace is clean, checkout to a new branch and commit after task finished.
-
-<!-- SPECKIT START -->
-For additional context about technologies to be used, project structure,
-shell commands, and other important information, read the current plan at:
-specs/001-custom-domain-shape-inference/plan.md
-<!-- SPECKIT END -->

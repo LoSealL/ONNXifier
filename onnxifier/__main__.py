@@ -69,6 +69,17 @@ def parse_args():
         help="print the name of all optimizing passes",
     )
     parser.add_argument(
+        "--print-format",
+        choices=("table", "csv", "json"),
+        default="table",
+        help="output format for --print, defaults to table",
+    )
+    parser.add_argument(
+        "--full",
+        action="store_true",
+        help="with --print, also show the rewriter docstring (manual)",
+    )
+    parser.add_argument(
         "--format",
         choices=("protobuf", "textproto", "json", "onnxtxt"),
         default=None,
@@ -253,15 +264,15 @@ def main():
     if args.print:
         match args.print:
             case "all":
-                PassManager.print_all()
+                PassManager.print_all(args.full, args.print_format)
             case "l1":
-                PassManager.print_l1()
+                PassManager.print_l1(args.full, args.print_format)
             case "l2":
-                PassManager.print_l2()
+                PassManager.print_l2(args.full, args.print_format)
             case "l3":
-                PassManager.print_l3()
+                PassManager.print_l3(args.full, args.print_format)
             case _:
-                PassManager.print(args.print)
+                PassManager.print(args.print, args.full, args.print_format)
         exit(0)
     try:
         input_model, output_model, configs = read_configs_from_args_or_file(args, argv)

@@ -431,6 +431,19 @@ def test_print_specific(capsys):
     assert "function_in_test" in capsys.readouterr().out
 
 
+def test_to_format_table_adaptive_width(monkeypatch):
+    """PASS column is never wrapped and widths follow the terminal size."""
+    monkeypatch.setenv("COLUMNS", "120")
+    narrow = PASSES.to_format("table", True)
+    monkeypatch.setenv("COLUMNS", "300")
+    wide = PASSES.to_format("table", True)
+    for out in (narrow, wide):
+        for name in PASSES:
+            assert name in out  # PASS names stay on one line
+        assert "DOC" in out
+    assert max(map(len, wide.splitlines())) > max(map(len, narrow.splitlines()))
+
+
 def test_repr():
     pm = PassManager(["function_in_test"])
     r = repr(pm)

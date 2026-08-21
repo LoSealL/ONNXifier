@@ -14,8 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import csv
 import inspect
-from collections.abc import Callable, Iterator, Sequence
+import io
+import json
+import shutil
+from collections.abc import Callable, Iterable, Iterator, Sequence
+from itertools import chain
 from pathlib import Path
 from typing import Optional, Protocol, TypeVar, cast
 
@@ -37,6 +42,13 @@ T = TypeVar("T", bound=GraphNode)
 F = TypeVar("F", bound=Callable)
 
 
+def _longest_line(cells: Iterable[object]) -> int:
+    """Width a column needs to show its content unwrapped."""
+    return max(
+        (len(line) for cell in cells for line in str(cell).splitlines()), default=0
+    )
+
+
 class FuncInterfaceWrapper[T: GraphNode]:
     def __init__(
         self,
@@ -50,9 +62,11 @@ class FuncInterfaceWrapper[T: GraphNode]:
         self.__NAME__ = name or func.__name__
         self.__DEPS__ = deps or []
         self.__PATCHES__ = patches or []
+        self.__DOC__ = inspect.getdoc(func)
         setattr(func, "__NAME__", self.__NAME__)
         setattr(func, "__DEPS__", self.__DEPS__)
         setattr(func, "__PATCHES__", self.__PATCHES__)
+        setattr(func, "__DOC__", self.__DOC__)
 
     def __call__(self) -> T:
         return cast(T, self.__FUNC)
@@ -79,6 +93,7 @@ class Registry[T: GraphNode]:
     def __init__(self, name=None, parent: Optional["Registry[T]"] = None) -> None:
         self._bucks: dict[str, type[T] | FuncInterfaceWrapper[T]] = {}
         self._configs: dict = {}
+        self._docs: dict[str, str | None] = {}
         self._name = name or "<Registry>"
         self._parent = parent
         if parent is not None:
@@ -123,6 +138,7 @@ class Registry[T: GraphNode]:
                 func_wrap = FuncInterfaceWrapper[T](func, name, deps, patch)
                 self._bucks[func_wrap.__NAME__] = func_wrap
                 self._configs[func_wrap.__NAME__] = inspect.signature(func)
+                self._docs[func_wrap.__NAME__] = func_wrap.__DOC__
             else:
                 assert isinstance(func, type)
                 if not issubclass(func, Rewriter):
@@ -137,6 +153,7 @@ class Registry[T: GraphNode]:
                 func.__PATCHES__.extend(patch or [])
                 self._bucks[func.__NAME__] = cast(type[T], func)
                 self._configs[func.__NAME__] = inspect.signature(func.rewrite)
+                self._docs[func.__NAME__] = inspect.getdoc(func)
             if self._parent is not None:
                 self._parent.register(name, deps, patch)(func)
             # forward the signature of the original function
@@ -175,6 +192,7 @@ class Registry[T: GraphNode]:
         # pylint: disable=protected-access
         reg._bucks = {k: self._bucks[k] for k in passes}
         reg._configs = {k: self._configs[k] for k in passes}
+        reg._docs = {k: self._docs[k] for k in passes}
         return reg
 
     def __getitem__(self, name: str | type[T]) -> T:
@@ -205,6 +223,66 @@ class Registry[T: GraphNode]:
                 ]
             )
         return tabulate(members, title, "simple_grid", maxcolwidths=[None, 50, 50, 50])
+
+    def to_format(self, fmt: str = "table", full: bool = False) -> str:
+        """Render the registry as a string in the requested format.
+
+        Args:
+            fmt (str): ``table`` (default), ``csv`` or ``json``.
+            full (bool): include the rewriter docstring (manual) column.
+        """
+
+        headers = ["PASS", "DEPS", "PATCH", "CONFIG"]
+        if full:
+            headers.append("DOC")
+        members: list[list] = []
+        for k in sorted(self._bucks.keys()):
+            deps = [
+                i.__NAME__ if inspect.isclass(i) else i for i in self._bucks[k].__DEPS__
+            ]
+            patches = [
+                i.__NAME__ if inspect.isclass(i) else i
+                for i in self._bucks[k].__PATCHES__
+            ]
+            row: list = [k, deps, patches, str(self._configs[k])]
+            if full:
+                row.append(self._docs.get(k) or "")
+            members.append(row)
+        if fmt == "json":
+            records = [dict(zip(headers, row)) for row in members]
+            return json.dumps(records, indent=2, ensure_ascii=False)
+        if fmt == "csv":
+            # tabulate 0.10 has no "csv" fmt; write it manually so fields are
+            # properly quoted (DEPS/PATCH contain commas when joined).
+            buf = io.StringIO()
+            writer = csv.writer(buf)
+            writer.writerow(headers)
+            for row in members:
+                writer.writerow(
+                    [
+                        ",".join(cells) if isinstance(cells, list) else cells
+                        for cells in row
+                    ]
+                )
+            return buf.getvalue().rstrip("\n")
+        # table: content-aware widths, adaptive to the terminal (COLUMNS env
+        # overrides). The PASS column is never wrapped; the remaining columns
+        # take their natural width if it fits, else the excess is shed evenly
+        # from the widest ones (water-filling).
+        term = shutil.get_terminal_size((120, 24)).columns
+        overhead = 3 * len(headers) + 1
+        pass_w = _longest_line(chain([headers[0]], (m[0] for m in members)))
+        widths = [
+            _longest_line(chain([headers[i]], (m[i] for m in members)))
+            for i in range(1, len(headers))
+        ]
+        budget = max(30, term - overhead - pass_w)
+        excess = sum(widths) - budget
+        while excess > 0 and any(w > 10 for w in widths):
+            widths[widths.index(max(widths))] -= 1
+            excess -= 1
+        maxcolwidths: list[int | None] = [None, *widths]
+        return tabulate(members, headers, "simple_grid", maxcolwidths=maxcolwidths)
 
 
 def get_pass_manager(
