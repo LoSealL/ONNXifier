@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 import numpy as np
-from onnx import numpy_helper
+from onnx import TensorProto, checker, numpy_helper
 from onnx.helper import (
     make_graph,
     make_model,
@@ -76,3 +76,15 @@ def test_append_cast_uint8():
     graph = pm.optimize(graph, strict=True)
     assert len(graph.nodes) == 2
     assert "y/cast" in graph
+
+
+def test_append_cast_to_dtype():
+    model = _build_graph1()
+    graph = OnnxGraph(model)
+    pm = PassManager(["append_cast"], configs={"append_cast": {"to": "FLOAT16"}})
+    graph = pm.optimize(graph, strict=True)
+    assert len(graph.nodes) == 2
+    assert "y/cast" in graph
+    assert graph.tensor_type("y/cast_output") == TensorProto.FLOAT16
+    assert graph.output[0].name == "y/cast_output"
+    checker.check_model(graph.model)

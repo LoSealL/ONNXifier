@@ -14,6 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from copy import deepcopy
+
+from onnx import TensorProto
 from onnx.helper import make_node, make_value_info
 
 from ... import OnnxGraph
@@ -21,26 +24,35 @@ from .. import PASSES
 
 
 @PASSES.register()
-def append_cast(graph: OnnxGraph) -> OnnxGraph:
-    """Append identity op to the output.
+def append_cast(graph: OnnxGraph, to: int | str | None = None) -> OnnxGraph:
+    """Append a Cast op to each graph output.
 
     Args:
         graph (OnnxGraph): the graph to rewrite
+        to (int | str, optional): target dtype, either a ``TensorProto`` dtype
+            or a dtype name like ``"FLOAT16"``. Defaults to keeping each
+            output dtype unchanged (dummy cast).
 
     Returns:
         OnnxGraph: the rewritten graph
     """
+    if isinstance(to, str):
+        to = TensorProto.DataType.Value(to.upper())
 
     # append cast
     cast_nodes = []
     for output in list(graph.output):
         new_out_name = f"{output.name}/cast_output"
+        out_type = output.type
+        if to is not None:
+            out_type = deepcopy(output.type)
+            out_type.tensor_type.elem_type = to
         cast = make_node(
             "Cast",
             inputs=[output.name],
             outputs=[new_out_name],
             name=f"{output.name}/cast",
-            to=output.type.tensor_type.elem_type,  # dummy cast
+            to=to if to is not None else output.type.tensor_type.elem_type,
         )
         cast_nodes.append(cast)
 
@@ -48,7 +60,7 @@ def append_cast(graph: OnnxGraph) -> OnnxGraph:
         graph.outputs[new_out_name] = len(graph.output)
         graph.output.append(
             make_value_info(
-                name=new_out_name, type_proto=output.type, doc_string=output.doc_string
+                name=new_out_name, type_proto=out_type, doc_string=output.doc_string
             )
         )
         graph.remove_output(output.name)
